@@ -23,7 +23,7 @@ import { formatTodosForContext, formatScratchpadForContext } from "./state";
 import type { TodoItem, ScratchpadEntry } from "./types";
 import { todoItemSchema } from "./types";
 import { devToolsMiddleware } from "@ai-sdk/devtools";
-import { addCacheControlToMessages } from "./utils";
+import { addCacheControl } from "./utils";
 
 const callOptionsSchema = z.object({
   workingDirectory: z.string().optional(),
@@ -45,28 +45,33 @@ const callOptionsSchema = z.object({
 
 export type DeepAgentCallOptions = z.infer<typeof callOptionsSchema>;
 
+const model = gateway("anthropic/claude-haiku-4.5");
+
 export const deepAgent = new ToolLoopAgent({
   model: wrapLanguageModel({
     middleware: devToolsMiddleware(),
-    model: gateway("anthropic/claude-haiku-4.5"),
+    model,
   }),
   instructions: buildSystemPrompt({}),
-  tools: {
-    todo_write: todoWriteTool,
-    read: readFileTool,
-    write: writeFileTool,
-    edit: editFileTool,
-    grep: grepTool,
-    glob: globTool,
-    bash: bashTool,
-    task: taskTool,
-    memory_save: memorySaveTool,
-    memory_recall: memoryRecallTool,
-  },
+  tools: addCacheControl({
+    tools: {
+      todo_write: todoWriteTool,
+      read: readFileTool,
+      write: writeFileTool,
+      edit: editFileTool,
+      grep: grepTool,
+      glob: globTool,
+      bash: bashTool,
+      task: taskTool,
+      memory_save: memorySaveTool,
+      memory_recall: memoryRecallTool,
+    },
+    model,
+  }),
   stopWhen: stepCountIs(50),
   callOptionsSchema,
   prepareStep: ({ messages, model }) => ({
-    messages: addCacheControlToMessages({ messages, model }),
+    messages: addCacheControl({ messages, model }),
   }),
   prepareCall: ({ options, model, ...settings }) => {
     const workingDirectory = options?.workingDirectory ?? process.cwd();
