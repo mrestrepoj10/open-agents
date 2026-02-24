@@ -93,6 +93,8 @@ const parseStreamTokenStartedAt = (streamToken: string | null) => {
   return startedAt;
 };
 
+export const maxDuration = 800;
+
 export async function POST(req: Request) {
   // 1. Validate session
   const session = await getServerSession();
@@ -342,6 +344,14 @@ export async function POST(req: Request) {
     controller.abort();
   });
 
+  // Abort gracefully before the platform kills the function at maxDuration,
+  // so that onFinish fires and we persist the partial response.
+  const PRE_TIMEOUT_MS = 730_000;
+  const timeoutHandle = setTimeout(() => {
+    console.warn("[chat] Aborting before maxDuration timeout");
+    controller.abort();
+  }, PRE_TIMEOUT_MS);
+
   let stopSignalClosed = false;
   const closeStopSignal = () => {
     if (stopSignalClosed) {
@@ -388,14 +398,19 @@ export async function POST(req: Request) {
       abortSignal: controller.signal,
     });
   } catch (error) {
+    clearTimeout(timeoutHandle);
     closeStopSignal();
     await clearOwnedStreamToken();
     throw error;
   }
 
   void result.consumeStream().then(
-    () => closeStopSignal(),
+    () => {
+      clearTimeout(timeoutHandle);
+      closeStopSignal();
+    },
     async () => {
+      clearTimeout(timeoutHandle);
       closeStopSignal();
       await clearOwnedStreamToken();
     },
@@ -457,6 +472,7 @@ export async function POST(req: Request) {
       }
     },
     onFinish: async ({ responseMessage }) => {
+      clearTimeout(timeoutHandle);
       if (chatId) {
         closeStopSignal();
         const stillOwnsStream = await clearOwnedStreamToken();
