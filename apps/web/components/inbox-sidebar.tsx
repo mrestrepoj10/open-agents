@@ -175,6 +175,11 @@ function getSessionStatusLabel(session: SessionWithUnread): string {
   return "Idle";
 }
 
+function getSessionBranchUrl(session: SessionWithUnread): string | null {
+  if (!session.branch || !session.repoOwner || !session.repoName) return null;
+  return `https://github.com/${session.repoOwner}/${session.repoName}/tree/${session.branch}`;
+}
+
 function getSessionPrUrl(session: SessionWithUnread): string | null {
   if (!session.prNumber || !session.repoOwner || !session.repoName) return null;
   return `https://github.com/${session.repoOwner}/${session.repoName}/pull/${session.prNumber}`;
@@ -184,6 +189,7 @@ function SessionPopoverContent({ session }: { session: SessionWithUnread }) {
   const lastActivityLabel = formatRelativeTime(
     session.lastActivityAt ?? session.createdAt,
   );
+  const branchUrl = getSessionBranchUrl(session);
   const prUrl = getSessionPrUrl(session);
   const hasDiff = session.linesAdded !== null || session.linesRemoved !== null;
   const hasSecondRow = hasDiff || prUrl;
@@ -202,9 +208,20 @@ function SessionPopoverContent({ session }: { session: SessionWithUnread }) {
         {session.branch ? (
           <>
             <span className="shrink-0 text-muted-foreground/40">·</span>
-            <span className="min-w-0 truncate font-mono text-[11px]">
-              {session.branch}
-            </span>
+            {branchUrl ? (
+              <a
+                href={branchUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="min-w-0 truncate font-mono text-[11px] hover:text-foreground transition-colors"
+              >
+                {session.branch}
+              </a>
+            ) : (
+              <span className="min-w-0 truncate font-mono text-[11px]">
+                {session.branch}
+              </span>
+            )}
           </>
         ) : null}
         <span className="shrink-0 text-muted-foreground/40">·</span>
