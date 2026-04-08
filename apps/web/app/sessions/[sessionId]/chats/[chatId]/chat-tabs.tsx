@@ -135,7 +135,7 @@ export function ChatTabs({
                       }
                       setActiveView("chat");
                     }}
-                    className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium"
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium"
                   >
                     <span className="max-w-[120px] truncate">
                       {chat.title || "New Chat"}
