@@ -30,6 +30,12 @@ describe("shouldApplyOpenAIReasoningDefaults", () => {
     expect(shouldApplyOpenAIReasoningDefaults("openai/gpt-5.4")).toBe(true);
   });
 
+  test("returns false for GPT-5 Codex Spark", () => {
+    expect(
+      shouldApplyOpenAIReasoningDefaults("openai/gpt-5.3-codex-spark"),
+    ).toBe(false);
+  });
+
   test("returns true for future GPT-5 variants", () => {
     expect(shouldApplyOpenAIReasoningDefaults("openai/gpt-5.9")).toBe(true);
   });
@@ -85,6 +91,17 @@ describe("getProviderOptionsForModel", () => {
         include: ["reasoning.encrypted_content"],
         store: false,
         textVerbosity: "low",
+      },
+    });
+  });
+
+  test("does not apply reasoning summary defaults to GPT-5.3 Codex Spark", () => {
+    const result = getProviderOptionsForModel("openai/gpt-5.3-codex-spark");
+
+    expect(result).toEqual({
+      openai: {
+        include: ["reasoning.encrypted_content"],
+        store: false,
       },
     });
   });

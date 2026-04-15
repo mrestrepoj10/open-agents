@@ -60,9 +60,11 @@ export function ModelSelectorCompact({
   disabled = false,
   onCloseAutoFocus,
 }: ModelSelectorCompactProps) {
+  const defaultTab =
+    openAIAuthSource === "codex-subscription" ? "codex" : "all";
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<"all" | "codex">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "codex">(defaultTab);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const codexModelOptions = useMemo(
     () => buildCodexTabModelOptions(modelOptions),
@@ -88,6 +90,12 @@ export function ModelSelectorCompact({
     }
     focusSearchInput();
   }, [focusSearchInput, open]);
+
+  useEffect(() => {
+    if (!open) {
+      setActiveTab(defaultTab);
+    }
+  }, [defaultTab, open]);
 
   useEffect(() => {
     if (disabled) {
@@ -129,6 +137,17 @@ export function ModelSelectorCompact({
     );
   }, [codexModelOptions, modelOptions, value]);
   const displayText = selectedOption?.label ?? value;
+  const shouldShowListBadge = (option: ModelOption) => {
+    if (!isOpenAIModel(option)) {
+      return false;
+    }
+
+    if (activeTab === "codex") {
+      return false;
+    }
+
+    return openAIAuthSource !== "codex-subscription";
+  };
 
   return (
     <Popover
@@ -137,7 +156,7 @@ export function ModelSelectorCompact({
         setOpen(nextOpen);
         if (!nextOpen) {
           setSearch("");
-          setActiveTab("all");
+          setActiveTab(defaultTab);
         }
       }}
     >
@@ -202,7 +221,7 @@ export function ModelSelectorCompact({
                 <CommandItem
                   key={option.id}
                   value={`${option.label} ${option.id} ${option.description ?? ""} ${
-                    isOpenAIModel(option)
+                    shouldShowListBadge(option)
                       ? renderOpenAIBadgeLabel(openAIAuthSource)
                       : ""
                   }`}
@@ -217,7 +236,7 @@ export function ModelSelectorCompact({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="truncate">{option.label}</span>
-                      {isOpenAIModel(option) ? (
+                      {shouldShowListBadge(option) ? (
                         <OpenAIAuthSourceBadge source={openAIAuthSource} />
                       ) : null}
                       {option.isVariant && (

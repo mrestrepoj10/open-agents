@@ -128,11 +128,17 @@ function normalizeOpenAICompatibleModelId(modelId: string): string {
 }
 
 export function shouldApplyOpenAIReasoningDefaults(modelId: string): boolean {
-  return modelId.startsWith("openai/gpt-5");
+  return (
+    modelId.startsWith("openai/gpt-5") && !isOpenAICodexSparkModel(modelId)
+  );
 }
 
 function shouldApplyOpenAITextVerbosityDefaults(modelId: string): boolean {
   return modelId.startsWith("openai/gpt-5.4");
+}
+
+function isOpenAICodexSparkModel(modelId: string): boolean {
+  return modelId.startsWith("openai/gpt-5.3-codex-spark");
 }
 
 export function getProviderOptionsForModel(
@@ -155,7 +161,7 @@ export function getProviderOptionsForModel(
     } satisfies OpenAIResponsesProviderOptions);
   }
 
-  // Apply OpenAI defaults for all GPT-5 variants to expose encrypted reasoning content.
+  // Apply OpenAI defaults for GPT-5 variants to expose encrypted reasoning content.
   // This avoids Responses API failures when `store: false`, e.g.:
   // "Item with id 'rs_...' not found. Items are not persisted when `store` is set to false."
   if (shouldApplyOpenAIReasoningDefaults(modelId)) {
@@ -163,6 +169,15 @@ export function getProviderOptionsForModel(
       defaultProviderOptions.openai ?? {},
       toProviderOptionsRecord({
         reasoningSummary: "detailed",
+        include: ["reasoning.encrypted_content"],
+      } satisfies OpenAIResponsesProviderOptions),
+    );
+  }
+
+  if (modelId.startsWith("openai/gpt-5")) {
+    defaultProviderOptions.openai = mergeRecords(
+      defaultProviderOptions.openai ?? {},
+      toProviderOptionsRecord({
         include: ["reasoning.encrypted_content"],
       } satisfies OpenAIResponsesProviderOptions),
     );
