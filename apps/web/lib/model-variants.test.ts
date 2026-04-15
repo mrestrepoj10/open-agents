@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   BUILT_IN_VARIANT_ID_PREFIX,
   BUILT_IN_VARIANTS,
+  getBuiltInReasoningVariantsForBaseModel,
   getAllVariants,
+  getBuiltInVariantById,
   isBuiltInVariant,
   resolveModelSelection,
   toProviderOptionsByProvider,
@@ -60,7 +62,7 @@ describe("model variants", () => {
   });
 
   test("BUILT_IN_VARIANTS has expected shape and ids", () => {
-    expect(BUILT_IN_VARIANTS).toHaveLength(2);
+    expect(BUILT_IN_VARIANTS).toHaveLength(1);
     for (const variant of BUILT_IN_VARIANTS) {
       expect(variant.id.startsWith(BUILT_IN_VARIANT_ID_PREFIX)).toBe(true);
     }
@@ -80,10 +82,9 @@ describe("model variants", () => {
 
     const result = getAllVariants(userVariants);
 
-    expect(result).toHaveLength(3);
+    expect(result).toHaveLength(2);
     expect(result[0]).toEqual(BUILT_IN_VARIANTS[0]);
-    expect(result[1]).toEqual(BUILT_IN_VARIANTS[1]);
-    expect(result[2]).toEqual(userVariants[0]);
+    expect(result[1]).toEqual(userVariants[0]);
   });
 
   test("resolveModelSelection returns base model unchanged when id is not a variant", () => {
@@ -124,7 +125,7 @@ describe("model variants", () => {
 
   test("resolveModelSelection resolves built-in variants", () => {
     const result = resolveModelSelection(
-      "variant:builtin:gpt-5.4-xhigh",
+      "variant:builtin:reasoning:openai__gpt-5.4:xhigh",
       BUILT_IN_VARIANTS,
     );
 
@@ -133,11 +134,42 @@ describe("model variants", () => {
       providerOptionsByProvider: {
         openai: {
           reasoningEffort: "xhigh",
-          reasoningSummary: "auto",
           store: false,
         },
       },
       isMissingVariant: false,
+    });
+  });
+
+  test("resolveModelSelection supports the legacy GPT-5.4 built-in alias", () => {
+    const result = resolveModelSelection("variant:builtin:gpt-5.4-xhigh", []);
+
+    expect(result).toEqual({
+      resolvedModelId: "openai/gpt-5.4",
+      providerOptionsByProvider: {
+        openai: {
+          reasoningEffort: "xhigh",
+          store: false,
+        },
+      },
+      isMissingVariant: false,
+    });
+  });
+
+  test("returns built-in reasoning variants for supported codex models", () => {
+    expect(
+      getBuiltInReasoningVariantsForBaseModel("openai/gpt-5.3-codex-spark").map(
+        (variant) => variant.name,
+      ),
+    ).toEqual(["Low", "Medium", "High", "XHigh"]);
+  });
+
+  test("finds built-in reasoning variants by id", () => {
+    expect(
+      getBuiltInVariantById("variant:builtin:reasoning:openai__gpt-5.2:high"),
+    ).toMatchObject({
+      baseModelId: "openai/gpt-5.2",
+      name: "High",
     });
   });
 

@@ -3,6 +3,7 @@ import { z } from "zod";
 export const MODEL_VARIANT_ID_PREFIX = "variant:";
 export const BUILT_IN_VARIANT_ID_PREFIX = "variant:builtin:";
 const MODEL_VARIANT_NAME_MAX_LENGTH = 80;
+type OpenAIReasoningEffort = "low" | "medium" | "high" | "xhigh";
 
 type JsonPrimitive = string | number | boolean | null;
 export type JsonValue =
@@ -126,6 +127,93 @@ export interface ResolvedModelSelection {
   isMissingVariant: boolean;
 }
 
+function createBuiltInReasoningVariantId(
+  baseModelId: string,
+  effort: OpenAIReasoningEffort,
+): string {
+  return `${BUILT_IN_VARIANT_ID_PREFIX}reasoning:${baseModelId.replace("/", "__")}:${effort}`;
+}
+
+function createBuiltInReasoningVariant(input: {
+  baseModelId: string;
+  effort: OpenAIReasoningEffort;
+  name: string;
+}): ModelVariant {
+  return {
+    id: createBuiltInReasoningVariantId(input.baseModelId, input.effort),
+    name: input.name,
+    baseModelId: input.baseModelId,
+    providerOptions: {
+      reasoningEffort: input.effort,
+    },
+  };
+}
+
+const BUILT_IN_REASONING_VARIANTS = [
+  ["openai/gpt-5.4", ["low", "medium", "high", "xhigh"]],
+  ["openai/gpt-5.4-mini", ["low", "medium", "high", "xhigh"]],
+  ["openai/gpt-5.2", ["low", "medium", "high", "xhigh"]],
+  ["openai/gpt-5.2-codex", ["low", "medium", "high", "xhigh"]],
+  ["openai/gpt-5.3-codex", ["low", "medium", "high", "xhigh"]],
+  ["openai/gpt-5.3-codex-spark", ["low", "medium", "high", "xhigh"]],
+  ["openai/gpt-5.1-codex-max", ["medium", "high", "xhigh"]],
+  ["openai/gpt-5.1-codex", ["low", "medium", "high"]],
+  ["openai/gpt-5.1-codex-mini", ["low", "medium", "high"]],
+] as const satisfies ReadonlyArray<
+  readonly [string, readonly OpenAIReasoningEffort[]]
+>;
+
+const BUILT_IN_REASONING_VARIANT_LABELS: Record<OpenAIReasoningEffort, string> =
+  {
+    low: "Low",
+    medium: "Medium",
+    high: "High",
+    xhigh: "XHigh",
+  };
+
+const BUILT_IN_REASONING_MODEL_VARIANTS: ModelVariant[] =
+  BUILT_IN_REASONING_VARIANTS.flatMap(([baseModelId, efforts]) =>
+    efforts.map((effort) =>
+      createBuiltInReasoningVariant({
+        baseModelId,
+        effort,
+        name: BUILT_IN_REASONING_VARIANT_LABELS[effort],
+      }),
+    ),
+  );
+
+const LEGACY_BUILT_IN_VARIANT_ALIASES = new Map<string, string>([
+  [
+    "variant:builtin:gpt-5.4-xhigh",
+    createBuiltInReasoningVariantId("openai/gpt-5.4", "xhigh"),
+  ],
+]);
+
+function normalizeBuiltInVariantId(variantId: string): string {
+  return LEGACY_BUILT_IN_VARIANT_ALIASES.get(variantId) ?? variantId;
+}
+
+export function getBuiltInVariantById(
+  variantId: string,
+): ModelVariant | undefined {
+  const normalizedVariantId = normalizeBuiltInVariantId(variantId);
+
+  return (
+    BUILT_IN_VARIANTS.find((variant) => variant.id === normalizedVariantId) ??
+    BUILT_IN_REASONING_MODEL_VARIANTS.find(
+      (variant) => variant.id === normalizedVariantId,
+    )
+  );
+}
+
+export function getBuiltInReasoningVariantsForBaseModel(
+  baseModelId: string,
+): ModelVariant[] {
+  return BUILT_IN_REASONING_MODEL_VARIANTS.filter(
+    (variant) => variant.baseModelId === baseModelId,
+  );
+}
+
 export function resolveModelSelection(
   selectedModelId: string,
   variants: ModelVariant[],
@@ -137,7 +225,9 @@ export function resolveModelSelection(
     };
   }
 
-  const variant = variants.find((item) => item.id === selectedModelId);
+  const variant =
+    variants.find((item) => item.id === selectedModelId) ??
+    getBuiltInVariantById(selectedModelId);
   if (!variant) {
     return {
       resolvedModelId: selectedModelId,
@@ -160,15 +250,6 @@ export function isBuiltInVariant(variantId: string): boolean {
 }
 
 export const BUILT_IN_VARIANTS: ModelVariant[] = [
-  {
-    id: `${BUILT_IN_VARIANT_ID_PREFIX}gpt-5.4-xhigh`,
-    name: "GPT-5.4 (XHigh)",
-    baseModelId: "openai/gpt-5.4",
-    providerOptions: {
-      reasoningEffort: "xhigh",
-      reasoningSummary: "auto",
-    },
-  },
   {
     id: `${BUILT_IN_VARIANT_ID_PREFIX}claude-opus-4.6-high`,
     name: "Claude Opus 4.6 (High)",

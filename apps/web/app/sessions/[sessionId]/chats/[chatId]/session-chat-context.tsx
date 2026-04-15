@@ -30,6 +30,7 @@ import {
 import { useSessionSkills } from "@/hooks/use-session-skills";
 import type { Chat, Session } from "@/lib/db/schema";
 import { type ModelOption, withMissingModelOption } from "@/lib/model-options";
+import { resolveModelSelection, type ModelVariant } from "@/lib/model-variants";
 import {
   clearSandboxResumeState,
   clearSandboxState,
@@ -195,6 +196,8 @@ type SessionChatContextValue = {
   checkBranchAndPr: () => Promise<void>;
   /** Available model options (base models + variants) */
   modelOptions: ModelOption[];
+  /** Available model variants */
+  modelVariants: ModelVariant[];
   /** Whether model options are still loading */
   modelOptionsLoading: boolean;
 };
@@ -258,6 +261,7 @@ type SessionChatMetadataContextValue = Pick<
   | "updateSessionPullRequest"
   | "checkBranchAndPr"
   | "modelOptions"
+  | "modelVariants"
   | "modelOptionsLoading"
 >;
 
@@ -305,21 +309,34 @@ export function SessionChatProvider({
       (hasPausedSandboxState(initialSession.sandboxState) ||
         !!initialSession.snapshotUrl),
   );
-  const { modelOptions: allModelOptions, loading: modelOptionsLoadingFromApi } =
-    useModelOptions({
-      initialModelOptions,
-    });
+  const {
+    modelOptions: allModelOptions,
+    modelVariants,
+    loading: modelOptionsLoadingFromApi,
+  } = useModelOptions({
+    initialModelOptions,
+  });
   const { preferences: userPrefs } = useUserPreferences();
   const enabledModelIds = userPrefs?.enabledModelIds;
+  const selectedBaseModelId = useMemo(
+    () =>
+      chatInfo.modelId
+        ? resolveModelSelection(chatInfo.modelId, modelVariants).resolvedModelId
+        : null,
+    [chatInfo.modelId, modelVariants],
+  );
   const baseModelOptions = useMemo(() => {
     if (!enabledModelIds || enabledModelIds.length === 0) {
       return allModelOptions;
     }
     const enabledSet = new Set(enabledModelIds);
     return allModelOptions.filter(
-      (option) => enabledSet.has(option.id) || option.id === chatInfo.modelId,
+      (option) =>
+        enabledSet.has(option.id) ||
+        option.id === chatInfo.modelId ||
+        option.id === selectedBaseModelId,
     );
-  }, [allModelOptions, enabledModelIds, chatInfo.modelId]);
+  }, [allModelOptions, enabledModelIds, chatInfo.modelId, selectedBaseModelId]);
   const modelOptions = useMemo(
     () => withMissingModelOption(baseModelOptions, chatInfo.modelId),
     [baseModelOptions, chatInfo.modelId],
@@ -327,8 +344,12 @@ export function SessionChatProvider({
   const modelOptionsLoading =
     modelOptions.length === 0 && modelOptionsLoadingFromApi;
   const contextLimit = useMemo(
-    () => resolveContextLimitForModel(modelOptions, chatInfo.modelId ?? null),
-    [modelOptions, chatInfo.modelId],
+    () =>
+      resolveContextLimitForModel(
+        modelOptions,
+        selectedBaseModelId ?? chatInfo.modelId ?? null,
+      ),
+    [modelOptions, selectedBaseModelId, chatInfo.modelId],
   );
   const hadInitialMessages = initialMessages.length > 0;
   const { chat, stopChatStream, retryChatStream } = useSessionChatRuntime({
@@ -1102,6 +1123,7 @@ export function SessionChatProvider({
       updateSessionPullRequest,
       checkBranchAndPr,
       modelOptions,
+      modelVariants,
       modelOptionsLoading,
     }),
     [
@@ -1128,6 +1150,7 @@ export function SessionChatProvider({
       updateSessionPullRequest,
       checkBranchAndPr,
       modelOptions,
+      modelVariants,
       modelOptionsLoading,
     ],
   );

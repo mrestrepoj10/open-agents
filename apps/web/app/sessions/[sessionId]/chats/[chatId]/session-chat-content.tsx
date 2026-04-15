@@ -64,6 +64,7 @@ import { FileSuggestionsDropdown } from "@/components/file-suggestions-dropdown"
 import { ImageAttachmentsPreview } from "@/components/image-attachments-preview";
 import { TextAttachmentsPreview } from "@/components/text-attachments-preview";
 import { ModelSelectorCompact } from "@/components/model-selector-compact";
+import { VariantSelectorCompact } from "@/components/variant-selector-compact";
 import { useInlineQuestion } from "@/components/inline-question-input";
 import { SlashCommandDropdown } from "@/components/slash-command-dropdown";
 import { SnippetChip } from "@/components/snippet-chip";
@@ -117,6 +118,10 @@ import {
   DEFAULT_CONTEXT_LIMIT,
   estimateModelUsageCost,
 } from "@/lib/models";
+import {
+  buildVariantSelectorOptions,
+  getResolvedBaseModelId,
+} from "@/lib/model-variant-options";
 import { prioritizeModelOptionsByProvider } from "@/lib/model-options";
 import { getPrDeploymentRefreshInterval } from "@/lib/pr-deployment-polling";
 import { fetcher } from "@/lib/swr";
@@ -1198,6 +1203,7 @@ export function SessionChatContent({
     updateSessionPullRequest,
     checkBranchAndPr,
     modelOptions,
+    modelVariants,
     modelOptionsLoading,
   } = useSessionChatMetadataContext();
   const {
@@ -1747,7 +1753,16 @@ export function SessionChatContent({
 
   const handleModelChange = useCallback(
     async (modelId: string) => {
-      if (!modelId || modelId === chatInfo.modelId) return;
+      if (!modelId) return;
+
+      const currentBaseModelId = getResolvedBaseModelId(
+        chatInfo.modelId,
+        modelVariants,
+      );
+      if (modelId === currentBaseModelId) {
+        return;
+      }
+
       try {
         setIsUpdatingModel(true);
         await updateChatModel(modelId);
@@ -1757,21 +1772,41 @@ export function SessionChatContent({
         setIsUpdatingModel(false);
       }
     },
-    [chatInfo.modelId, updateChatModel],
+    [chatInfo.modelId, modelVariants, updateChatModel],
   );
 
+  const selectedModelId = chatInfo.modelId;
+  const selectedBaseModelId = useMemo(
+    () => getResolvedBaseModelId(selectedModelId, modelVariants),
+    [selectedModelId, modelVariants],
+  );
   const selectedModelOption = useMemo(
-    () => modelOptions.find((option) => option.id === chatInfo.modelId),
-    [modelOptions, chatInfo.modelId],
+    () =>
+      modelOptions.find((option) => option.id === selectedBaseModelId) ??
+      modelOptions.find((option) => option.id === selectedModelId),
+    [modelOptions, selectedBaseModelId, selectedModelId],
+  );
+  const selectedVariantOption = useMemo(
+    () =>
+      buildVariantSelectorOptions(selectedModelId, modelVariants).find(
+        (option) => option.id === selectedModelId,
+      ) ?? null,
+    [selectedModelId, modelVariants],
   );
   const promptModelOptions = useMemo(
     () =>
       hasCodexAccount
-        ? prioritizeModelOptionsByProvider(modelOptions, "openai")
-        : modelOptions,
+        ? prioritizeModelOptionsByProvider(
+            modelOptions.filter((option) => !option.isVariant),
+            "openai",
+          )
+        : modelOptions.filter((option) => !option.isVariant),
     [hasCodexAccount, modelOptions],
   );
-
+  const variantSelectorOptions = useMemo(
+    () => buildVariantSelectorOptions(selectedModelId, modelVariants),
+    [selectedModelId, modelVariants],
+  );
   const handleFileSelect = (
     value: string,
     mentionStart: number,
@@ -4177,7 +4212,9 @@ export function SessionChatContent({
                                 }
                               >
                                 <ModelSelectorCompact
-                                  value={chatInfo.modelId}
+                                  value={
+                                    selectedBaseModelId ?? chatInfo.modelId
+                                  }
                                   modelOptions={promptModelOptions}
                                   openAIAuthSource={effectiveOpenAIAuthSource}
                                   disabled={
@@ -4207,6 +4244,20 @@ export function SessionChatContent({
                                     void handleModelChange(modelId);
                                   }}
                                 />
+                                {variantSelectorOptions.length > 0 ? (
+                                  <VariantSelectorCompact
+                                    value={chatInfo.modelId}
+                                    options={variantSelectorOptions}
+                                    disabled={
+                                      isChatInFlight ||
+                                      isUpdatingModel ||
+                                      modelOptionsLoading
+                                    }
+                                    onChange={(modelId) => {
+                                      void handleModelChange(modelId);
+                                    }}
+                                  />
+                                ) : null}
                               </div>
                             ) : (
                               chatInfo.modelId && (
@@ -4215,6 +4266,12 @@ export function SessionChatContent({
                                     {selectedModelOption?.label ??
                                       chatInfo.modelId}
                                   </span>
+                                  {selectedVariantOption &&
+                                  !selectedVariantOption.isDefault ? (
+                                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+                                      {selectedVariantOption.label}
+                                    </span>
+                                  ) : null}
                                   {selectedModelOption?.provider ===
                                   "openai" ? (
                                     <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
