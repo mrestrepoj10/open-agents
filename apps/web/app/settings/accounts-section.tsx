@@ -390,6 +390,8 @@ export function AccountsSection() {
           )}
         </div>
       </div>
+
+      <CodexAccountCard />
     </div>
   );
 }
