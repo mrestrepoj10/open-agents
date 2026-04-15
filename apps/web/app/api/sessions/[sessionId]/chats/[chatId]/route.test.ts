@@ -113,6 +113,7 @@ mock.module("@/lib/db/user-preferences", () => ({
     globalSkillRefs: [],
     modelVariants: [],
     enabledModelIds: [],
+    openaiAuthSource: "gateway",
   }),
 }));
 

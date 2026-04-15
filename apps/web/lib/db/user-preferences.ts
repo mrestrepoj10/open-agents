@@ -11,6 +11,7 @@ import { db } from "./client";
 import { userPreferences, type UserPreferences } from "./schema";
 
 export type DiffMode = "unified" | "split";
+export type OpenAIAuthSource = "gateway" | "codex-subscription";
 
 export interface UserPreferencesData {
   defaultModelId: string;
@@ -25,6 +26,7 @@ export interface UserPreferencesData {
   globalSkillRefs: GlobalSkillRef[];
   modelVariants: ModelVariant[];
   enabledModelIds: string[];
+  openaiAuthSource: OpenAIAuthSource;
 }
 
 const DEFAULT_PREFERENCES: UserPreferencesData = {
@@ -40,6 +42,7 @@ const DEFAULT_PREFERENCES: UserPreferencesData = {
   globalSkillRefs: [],
   modelVariants: [],
   enabledModelIds: [],
+  openaiAuthSource: "gateway",
 };
 
 const VALID_SANDBOX_TYPES: SandboxType[] = ["vercel"];
@@ -78,6 +81,10 @@ function normalizeEnabledModelIds(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string");
 }
 
+function normalizeOpenAIAuthSource(value: unknown): OpenAIAuthSource {
+  return value === "codex-subscription" ? "codex-subscription" : "gateway";
+}
+
 export function toUserPreferencesData(
   row?: Pick<
     UserPreferences,
@@ -93,6 +100,7 @@ export function toUserPreferencesData(
     | "globalSkillRefs"
     | "modelVariants"
     | "enabledModelIds"
+    | "openaiAuthSource"
   >,
 ): UserPreferencesData {
   const parsedModelVariants = modelVariantsSchema.safeParse(
@@ -114,6 +122,7 @@ export function toUserPreferencesData(
     globalSkillRefs: normalizeGlobalSkillRefs(row?.globalSkillRefs),
     modelVariants: parsedModelVariants.success ? parsedModelVariants.data : [],
     enabledModelIds: normalizeEnabledModelIds(row?.enabledModelIds),
+    openaiAuthSource: normalizeOpenAIAuthSource(row?.openaiAuthSource),
   };
 }
 
@@ -184,6 +193,8 @@ export async function updateUserPreferences(
       modelVariants: updates.modelVariants ?? DEFAULT_PREFERENCES.modelVariants,
       enabledModelIds:
         updates.enabledModelIds ?? DEFAULT_PREFERENCES.enabledModelIds,
+      openaiAuthSource:
+        updates.openaiAuthSource ?? DEFAULT_PREFERENCES.openaiAuthSource,
     })
     .returning();
 

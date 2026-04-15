@@ -44,6 +44,20 @@ export const maxDuration = 800;
 
 type WebAgentUIMessageChunk = InferUIMessageChunk<WebAgentUIMessage>;
 
+function applyOpenAIAuthSource<T extends { id: string }>(
+  selection: T,
+  openaiAuthSource: "gateway" | "codex-subscription" | undefined,
+): T & { authSource?: "gateway" | "codex-subscription" } {
+  if (!selection.id.startsWith("openai/") || !openaiAuthSource) {
+    return selection;
+  }
+
+  return {
+    ...selection,
+    authSource: openaiAuthSource,
+  };
+}
+
 function getLatestUserMessage(messages: WebAgentUIMessage[]) {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
@@ -185,27 +199,33 @@ export async function POST(req: Request) {
     session,
     req.url,
   );
-  const mainModelSelection = resolveChatModelSelection({
-    selectedModelId: sanitizeSelectedModelIdForSession(
-      chat.modelId,
-      modelVariants,
-      session,
-      req.url,
-    ),
-    modelVariants,
-    missingVariantLabel: "Selected model variant",
-  });
-  const subagentModelSelection = preferences?.defaultSubagentModelId
-    ? resolveChatModelSelection({
-        selectedModelId: sanitizeSelectedModelIdForSession(
-          preferences.defaultSubagentModelId,
-          modelVariants,
-          session,
-          req.url,
-        ),
+  const mainModelSelection = applyOpenAIAuthSource(
+    resolveChatModelSelection({
+      selectedModelId: sanitizeSelectedModelIdForSession(
+        chat.modelId,
         modelVariants,
-        missingVariantLabel: "Subagent model variant",
-      })
+        session,
+        req.url,
+      ),
+      modelVariants,
+      missingVariantLabel: "Selected model variant",
+    }),
+    preferences?.openaiAuthSource,
+  );
+  const subagentModelSelection = preferences?.defaultSubagentModelId
+    ? applyOpenAIAuthSource(
+        resolveChatModelSelection({
+          selectedModelId: sanitizeSelectedModelIdForSession(
+            preferences.defaultSubagentModelId,
+            modelVariants,
+            session,
+            req.url,
+          ),
+          modelVariants,
+          missingVariantLabel: "Subagent model variant",
+        }),
+        preferences.openaiAuthSource,
+      )
     : undefined;
 
   // Determine if auto-commit and auto-PR should run after a natural finish.

@@ -50,6 +50,7 @@ const basePreferences: UserPreferencesData = {
   globalSkillRefs: [],
   modelVariants: [userOpusVariant],
   enabledModelIds: ["anthropic/claude-opus-4.6", "openai/gpt-5"],
+  openaiAuthSource: "gateway",
 };
 
 describe("model access gating", () => {

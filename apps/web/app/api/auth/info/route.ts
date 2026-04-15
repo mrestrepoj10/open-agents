@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
-import { getGitHubAccount } from "@/lib/db/accounts";
+import { getCodexAccount, getGitHubAccount } from "@/lib/db/accounts";
 import { getInstallationsByUserId } from "@/lib/db/installations";
 import { userExists } from "@/lib/db/users";
 import { SESSION_COOKIE_NAME } from "@/lib/session/constants";
@@ -18,9 +18,10 @@ export async function GET(req: NextRequest) {
 
   // Run the user-existence check in parallel with the GitHub queries
   // so there is zero added latency on the happy path.
-  const [exists, ghAccount, installations] = await Promise.all([
+  const [exists, ghAccount, codexAccount, installations] = await Promise.all([
     userExists(session.user.id),
     getGitHubAccount(session.user.id),
+    getCodexAccount(session.user.id),
     getInstallationsByUserId(session.user.id),
   ]);
 
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest) {
   const hasGitHubAccount = ghAccount !== null;
   const hasGitHubInstallations = installations.length > 0;
   const hasGitHub = hasGitHubAccount || hasGitHubInstallations;
+  const hasCodexAccount = codexAccount !== null;
 
   const data: SessionUserInfo = {
     user: session.user,
@@ -42,6 +44,7 @@ export async function GET(req: NextRequest) {
     hasGitHub,
     hasGitHubAccount,
     hasGitHubInstallations,
+    hasCodexAccount,
   };
 
   return Response.json(data);

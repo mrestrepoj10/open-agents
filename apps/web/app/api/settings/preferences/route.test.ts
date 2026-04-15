@@ -20,6 +20,7 @@ const preferencesState = {
   globalSkillRefs: [] as Array<{ source: string; skillName: string }>,
   modelVariants: [] as Array<Record<string, unknown>>,
   enabledModelIds: [] as string[],
+  openaiAuthSource: "gateway" as const,
 };
 
 const updateCalls: Array<Record<string, unknown>> = [];

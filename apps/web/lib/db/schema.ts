@@ -49,7 +49,7 @@ export const accounts = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     provider: text("provider", {
-      enum: ["github"],
+      enum: ["github", "openai-codex"],
     })
       .notNull()
       .default("github"),
@@ -59,6 +59,7 @@ export const accounts = pgTable(
     expiresAt: timestamp("expires_at"),
     scope: text("scope"),
     username: text("username").notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -396,6 +397,11 @@ export const userPreferences = pgTable("user_preferences", {
     .$type<string[]>()
     .notNull()
     .default([]),
+  openaiAuthSource: text("openai_auth_source", {
+    enum: ["gateway", "codex-subscription"],
+  })
+    .notNull()
+    .default("gateway"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

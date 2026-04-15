@@ -113,7 +113,7 @@ export function PreferencesSectionSkeleton() {
 
 export function PreferencesSection() {
   const { theme, setTheme } = useTheme();
-  const { session } = useSession();
+  const { session, hasCodexAccount } = useSession();
   const { preferences, loading, updatePreferences } = useUserPreferences();
   const { modelOptions, loading: modelOptionsLoading } = useModelOptions();
   const [isSaving, setIsSaving] = useState(false);
@@ -127,6 +127,7 @@ export function PreferencesSection() {
   const selectedDefaultModelId =
     preferences?.defaultModelId ?? getDefaultModelOptionId(modelOptions);
   const selectedSubagentModelId = preferences?.defaultSubagentModelId ?? "auto";
+  const selectedOpenAIAuthSource = preferences?.openaiAuthSource ?? "gateway";
   const publicProfilePath = session?.user?.username
     ? `/u/${session.user.username}`
     : null;
@@ -166,6 +167,23 @@ export function PreferencesSection() {
       });
     } catch (error) {
       console.error("Failed to update subagent model preference:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleOpenAIAuthSourceChange = async (value: string) => {
+    if (value !== "gateway" && value !== "codex-subscription") {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await updatePreferences({
+        openaiAuthSource: value,
+      });
+    } catch (error) {
+      console.error("Failed to update OpenAI auth source:", error);
     } finally {
       setIsSaving(false);
     }
@@ -610,6 +628,34 @@ export function PreferencesSection() {
               For explorer and executor subagents.
             </p>
           </div>
+        </div>
+
+        <div className="grid gap-2 sm:max-w-xs">
+          <Label htmlFor="openai-auth-source">OpenAI Auth Source</Label>
+          <Select
+            value={selectedOpenAIAuthSource}
+            onValueChange={handleOpenAIAuthSourceChange}
+            disabled={isSaving}
+          >
+            <SelectTrigger id="openai-auth-source">
+              <SelectValue placeholder="Select auth source" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="gateway">Vercel AI Gateway</SelectItem>
+              <SelectItem
+                value="codex-subscription"
+                disabled={!hasCodexAccount}
+              >
+                Codex Subscription
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Applies to OpenAI models only.
+            {!hasCodexAccount
+              ? " Connect Codex in Settings > Connections to enable the subscription path."
+              : ""}
+          </p>
         </div>
 
         <EnabledModelsSection

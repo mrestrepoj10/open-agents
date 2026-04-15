@@ -2,6 +2,7 @@ import { getServerSession } from "@/lib/session/get-server-session";
 import {
   getUserPreferences,
   type DiffMode,
+  type OpenAIAuthSource,
   updateUserPreferences,
 } from "@/lib/db/user-preferences";
 import { sanitizeUserPreferencesForSession } from "@/lib/model-access";
@@ -23,6 +24,7 @@ interface UpdatePreferencesRequest {
   publicUsageEnabled?: boolean;
   globalSkillRefs?: GlobalSkillRef[];
   enabledModelIds?: string[];
+  openaiAuthSource?: OpenAIAuthSource;
 }
 
 export async function GET(req: Request) {
@@ -143,6 +145,18 @@ export async function PATCH(req: Request) {
     ) {
       return Response.json(
         { error: "Invalid enabledModelIds value" },
+        { status: 400 },
+      );
+    }
+  }
+
+  if (body.openaiAuthSource !== undefined) {
+    if (
+      body.openaiAuthSource !== "gateway" &&
+      body.openaiAuthSource !== "codex-subscription"
+    ) {
+      return Response.json(
+        { error: "Invalid openaiAuthSource value" },
         { status: 400 },
       );
     }

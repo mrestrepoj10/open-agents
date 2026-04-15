@@ -26,6 +26,7 @@ interface MockPreferences {
   defaultSandboxType: "vercel";
   defaultDiffMode: "unified" | "split";
   modelVariants: ModelVariant[];
+  openaiAuthSource: "gateway" | "codex-subscription";
 }
 
 let preferences: MockPreferences;
@@ -37,6 +38,7 @@ function resetPreferences() {
     defaultSandboxType: "vercel",
     defaultDiffMode: "unified",
     modelVariants: [],
+    openaiAuthSource: "gateway",
   };
 }
 

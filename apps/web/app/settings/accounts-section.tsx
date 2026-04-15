@@ -31,6 +31,7 @@ import { useGitHubConnectionStatus } from "@/hooks/use-github-connection-status"
 import { useSession } from "@/hooks/use-session";
 import { buildGitHubReconnectUrl } from "@/lib/github/connection-status";
 import { fetcher } from "@/lib/swr";
+import { CodexAccountCard } from "./codex-account-card";
 
 interface GitHubUserProfile {
   githubId: number;
@@ -195,6 +196,8 @@ export function AccountsSectionSkeleton() {
           </div>
         </div>
       </div>
+
+      <CodexAccountCard />
     </div>
   );
 }

@@ -45,6 +45,7 @@ mock.module("@/lib/db/user-preferences", () => ({
     globalSkillRefs: [{ source: "vercel/ai", skillName: "ai-sdk" }],
     modelVariants: [],
     enabledModelIds: [],
+    openaiAuthSource: "gateway",
   }),
 }));
 

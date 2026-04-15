@@ -92,7 +92,14 @@ mock.module("@/lib/db/user-preferences", () => ({
     defaultSandboxType: "vercel",
     defaultDiffMode: "unified",
     autoCommitPush: false,
+    autoCreatePr: false,
+    alertsEnabled: true,
+    alertSoundEnabled: true,
+    publicUsageEnabled: false,
+    globalSkillRefs: [],
     modelVariants: userModelVariants,
+    enabledModelIds: [],
+    openaiAuthSource: "gateway",
   }),
 }));
 

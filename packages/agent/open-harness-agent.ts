@@ -3,6 +3,7 @@ import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { z } from "zod";
 import { addCacheControl } from "./context-management";
 import {
+  type GatewayConfig,
   type GatewayModelId,
   gateway,
   type ProviderOptionsByProvider,
@@ -27,6 +28,8 @@ import {
 export interface AgentModelSelection {
   id: GatewayModelId;
   providerOptionsOverrides?: ProviderOptionsByProvider;
+  authSource?: "gateway" | "codex-subscription";
+  config?: GatewayConfig;
 }
 
 export type OpenHarnessAgentModelInput = GatewayModelId | AgentModelSelection;
@@ -104,10 +107,12 @@ export const openHarnessAgent = new ToolLoopAgent({
       : undefined;
 
     const callModel = gateway(mainSelection.id, {
+      config: mainSelection.config,
       providerOptionsOverrides: mainSelection.providerOptionsOverrides,
     });
     const subagentModel = subagentSelection
       ? gateway(subagentSelection.id, {
+          config: subagentSelection.config,
           providerOptionsOverrides: subagentSelection.providerOptionsOverrides,
         })
       : undefined;

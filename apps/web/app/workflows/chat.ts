@@ -35,6 +35,7 @@ import type {
   WorkflowRunStatus,
   WorkflowRunStepTiming,
 } from "@/lib/db/workflow-runs";
+import { resolveAgentOptionsForStep } from "./resolve-agent-options";
 
 type Options = {
   messages: WebAgentUIMessage[];
@@ -500,6 +501,7 @@ export async function runAgentWorkflow(options: Options) {
           assistantId,
           writable,
           workflowRunId,
+          options.userId,
           options.chatId,
           options.sessionId,
           options.modelId,
@@ -757,6 +759,7 @@ const runAgentStep = async (
   messageId: string,
   writable: Writable,
   workflowRunId: string,
+  userId: string,
   chatId: string,
   sessionId: string,
   selectedModelId: string,
@@ -772,6 +775,10 @@ const runAgentStep = async (
   const stopMonitor = startStopMonitor(workflowRunId, abortController);
 
   try {
+    const resolvedAgentOptions = await resolveAgentOptionsForStep(
+      userId,
+      agentOptions,
+    );
     let responseMessage: WebAgentUIMessage | undefined;
     let lastStepUsage: LanguageModelUsage | undefined;
     const lastOriginalMessage = originalMessages.at(-1);
@@ -788,7 +795,7 @@ const runAgentStep = async (
 
     const result = await webAgent.stream({
       messages,
-      options: agentOptions,
+      options: resolvedAgentOptions,
       abortSignal: abortController.signal,
     });
 

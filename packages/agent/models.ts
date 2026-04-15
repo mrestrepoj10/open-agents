@@ -9,7 +9,10 @@ import {
 } from "ai";
 import { devToolsMiddleware } from "@ai-sdk/devtools";
 import type { AnthropicLanguageModelOptions } from "@ai-sdk/anthropic";
-import type { OpenAIResponsesProviderOptions } from "@ai-sdk/openai";
+import {
+  createOpenAI,
+  type OpenAIResponsesProviderOptions,
+} from "@ai-sdk/openai";
 
 // Models with 4.5+ support adaptive thinking with effort control.
 // Older models use the legacy extended thinking API with a budget.
@@ -85,10 +88,20 @@ export function mergeProviderOptions(
   return merged;
 }
 
-export interface GatewayConfig {
+export interface GatewayTransportConfig {
   baseURL: string;
   apiKey: string;
 }
+
+export interface OpenAICompatibleConfig {
+  kind: "openai-compatible";
+  baseURL: string;
+  apiKey: string;
+  headers?: Record<string, string>;
+  name?: string;
+}
+
+export type GatewayConfig = GatewayTransportConfig | OpenAICompatibleConfig;
 
 export interface GatewayOptions {
   devtools?: boolean;
@@ -97,6 +110,20 @@ export interface GatewayOptions {
 }
 
 export type { GatewayModelId, LanguageModel, JSONValue };
+
+type WrappedLanguageModel = Parameters<typeof wrapLanguageModel>[0]["model"];
+
+function isOpenAICompatibleConfig(
+  config: GatewayConfig,
+): config is OpenAICompatibleConfig {
+  return "kind" in config && config.kind === "openai-compatible";
+}
+
+function normalizeOpenAICompatibleModelId(modelId: string): string {
+  return modelId.startsWith("openai/")
+    ? modelId.slice("openai/".length)
+    : modelId;
+}
 
 export function shouldApplyOpenAIReasoningDefaults(modelId: string): boolean {
   return modelId.startsWith("openai/gpt-5");
@@ -169,15 +196,25 @@ export function getProviderOptionsForModel(
 export function gateway(
   modelId: GatewayModelId,
   options: GatewayOptions = {},
-): LanguageModel {
+): WrappedLanguageModel {
   const { devtools = false, config, providerOptionsOverrides } = options;
 
-  // Use custom gateway config or default AI SDK gateway
-  const baseGateway = config
-    ? createGateway({ baseURL: config.baseURL, apiKey: config.apiKey })
-    : aiGateway;
+  let model: WrappedLanguageModel;
 
-  let model: LanguageModel = baseGateway(modelId);
+  if (config && isOpenAICompatibleConfig(config)) {
+    const provider = createOpenAI({
+      apiKey: config.apiKey,
+      baseURL: config.baseURL,
+      headers: config.headers,
+      ...(config.name ? { name: config.name } : {}),
+    });
+    model = provider.responses(normalizeOpenAICompatibleModelId(modelId));
+  } else {
+    const baseGateway = config
+      ? createGateway({ baseURL: config.baseURL, apiKey: config.apiKey })
+      : aiGateway;
+    model = baseGateway(modelId) as WrappedLanguageModel;
+  }
 
   const providerOptions = getProviderOptionsForModel(
     modelId,

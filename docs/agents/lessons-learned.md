@@ -19,6 +19,7 @@ Hard-won knowledge from building this codebase. When you make a mistake or disco
 ## Next.js
 
 - In Next.js App Router, dynamic route param names must match the folder segment exactly (e.g. `[sessionId]` requires `params.sessionId`, not `params.id`), or DB queries can receive `undefined` and fail at runtime.
+- Reusable server helpers that are imported by workflow code or unit-tested server modules should not be marked with `import "server-only"` unless they are guaranteed to stay behind a Route Handler or Server Component boundary; the marker can break Bun test imports even when the runtime call path is server-only.
 - Some planning docs still reference legacy `apps/web/app/tasks/[id]/...` paths; current UI/API code is centered on `apps/web/app/sessions/[sessionId]/chats/[chatId]/...`, so verify file paths before implementing plan items.
 - Next.js `after()` defers callbacks until the response is fully sent; for streaming endpoints this means `after()` runs after the entire stream completes, not at call time. Use fire-and-forget (`void run()`) for lifecycle kicks that must happen at request start.
 - In Next.js Route Handlers, `cookies()` from `next/headers` combined with `Response.redirect()` silently drops Set-Cookie headers from the redirect response. Use `NextResponse.redirect()` with `response.cookies.set()` instead to ensure cookies are included in redirect responses.

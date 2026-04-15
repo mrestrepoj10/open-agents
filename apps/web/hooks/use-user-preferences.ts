@@ -7,6 +7,7 @@ import type { ModelVariant } from "@/lib/model-variants";
 import type { GlobalSkillRef } from "@/lib/skills/global-skill-refs";
 
 export type DiffMode = "unified" | "split";
+export type OpenAIAuthSource = "gateway" | "codex-subscription";
 
 export interface UserPreferences {
   defaultModelId: string;
@@ -21,6 +22,7 @@ export interface UserPreferences {
   globalSkillRefs: GlobalSkillRef[];
   modelVariants: ModelVariant[];
   enabledModelIds: string[];
+  openaiAuthSource: OpenAIAuthSource;
 }
 
 interface PreferencesResponse {
