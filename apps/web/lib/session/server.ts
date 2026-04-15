@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { isAllowedEmail } from "@/lib/auth-allowlist";
 import type { Session } from "./types";
 import { SESSION_COOKIE_NAME } from "./constants";
 import { decryptJWE } from "@/lib/jwe/decrypt";
@@ -8,7 +9,7 @@ export async function getSessionFromCookie(
 ): Promise<Session | undefined> {
   if (cookieValue) {
     const decrypted = await decryptJWE<Session>(cookieValue);
-    if (decrypted) {
+    if (decrypted && isAllowedEmail(decrypted.user.email)) {
       return {
         created: decrypted.created,
         authProvider: decrypted.authProvider,

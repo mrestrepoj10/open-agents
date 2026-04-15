@@ -14,6 +14,8 @@ const DEPLOY_ENV_VARS = [
   "GITHUB_APP_PRIVATE_KEY",
   "NEXT_PUBLIC_GITHUB_APP_SLUG",
   "GITHUB_WEBHOOK_SECRET",
+  "AUTH_ALLOWED_EMAILS",
+  "AUTH_ALLOWED_EMAIL_DOMAINS",
 ] as const;
 
 const DEPLOY_PRODUCTS = [
@@ -45,7 +47,7 @@ const DEPLOY_TEMPLATE_URL = (() => {
     ["env", DEPLOY_ENV_VARS.join(",")],
     [
       "envDescription",
-      "Neon can provide POSTGRES_URL automatically. Generate JWE_SECRET and ENCRYPTION_KEY yourself, then add your Vercel OAuth and GitHub App credentials for a full deployment.",
+      "Neon can provide POSTGRES_URL automatically. Generate JWE_SECRET and ENCRYPTION_KEY yourself, then add your Vercel OAuth and GitHub App credentials. Optionally set auth allowlist env vars to restrict sign-in by email or domain.",
     ],
     ["products", encodeURIComponent(JSON.stringify(DEPLOY_PRODUCTS))],
     ["skippable-integrations", "1"],

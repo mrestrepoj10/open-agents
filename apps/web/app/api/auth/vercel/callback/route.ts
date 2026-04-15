@@ -1,5 +1,9 @@
 import { cookies } from "next/headers";
 import { type NextRequest } from "next/server";
+import {
+  AUTH_ACCESS_DENIED_ERROR_CODE,
+  isAllowedEmail,
+} from "@/lib/auth-allowlist";
 import { encrypt } from "@/lib/crypto";
 import { upsertUser } from "@/lib/db/users";
 import { encryptJWE } from "@/lib/jwe/encrypt";
@@ -10,6 +14,13 @@ function clearVercelOauthCookies(store: Awaited<ReturnType<typeof cookies>>) {
   store.delete("vercel_auth_state");
   store.delete("vercel_code_verifier");
   store.delete("vercel_auth_redirect_to");
+}
+
+function appendExpiredSessionCookie(response: Response) {
+  response.headers.append(
+    "Set-Cookie",
+    `${SESSION_COOKIE_NAME}=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; ${process.env.NODE_ENV === "production" ? "Secure; " : ""}SameSite=Lax`,
+  );
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
@@ -50,6 +61,22 @@ export async function GET(req: NextRequest): Promise<Response> {
     });
 
     const userInfo = await getVercelUserInfo(tokens.access_token);
+    if (!isAllowedEmail(userInfo.email)) {
+      const deniedUrl = new URL("/", req.url);
+      deniedUrl.searchParams.set("error", AUTH_ACCESS_DENIED_ERROR_CODE);
+
+      const response = new Response(null, {
+        status: 302,
+        headers: {
+          Location: deniedUrl.toString(),
+        },
+      });
+
+      appendExpiredSessionCookie(response);
+      clearVercelOauthCookies(cookieStore);
+
+      return response;
+    }
 
     const tokenExpiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 

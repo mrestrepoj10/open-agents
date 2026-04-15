@@ -10,7 +10,11 @@ import { LandingFooter } from "@/components/landing/footer";
 import { LandingNav } from "@/components/landing/nav";
 import { Stage } from "@/components/landing/stage";
 
-export function SignedOutHero() {
+export function SignedOutHero({
+  authErrorMessage,
+}: {
+  authErrorMessage?: string | null;
+}) {
   const heroButtonsRef = useRef<HTMLDivElement>(null);
   const [heroButtonsVisible, setHeroButtonsVisible] = useState(true);
 
@@ -44,6 +48,11 @@ export function SignedOutHero() {
                 Spawn coding agents that run infinitely in the cloud. Powered by
                 AI SDK, Gateway, Sandbox, and Workflow SDK.
               </p>
+              {authErrorMessage ? (
+                <div className="mt-6 inline-flex max-w-xl rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-amber-100">
+                  {authErrorMessage}
+                </div>
+              ) : null}
             </div>
 
             <div

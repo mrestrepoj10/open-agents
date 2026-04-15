@@ -10,9 +10,14 @@ import type { SessionUserInfo } from "@/lib/session/types";
 const UNAUTHENTICATED: SessionUserInfo = { user: undefined };
 
 export async function GET(req: NextRequest) {
+  const cookieValue = req.cookies.get(SESSION_COOKIE_NAME)?.value;
   const session = await getSessionFromReq(req);
 
   if (!session?.user?.id) {
+    if (cookieValue) {
+      const store = await cookies();
+      store.delete(SESSION_COOKIE_NAME);
+    }
     return Response.json(UNAUTHENTICATED);
   }
 

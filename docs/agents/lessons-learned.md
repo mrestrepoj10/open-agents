@@ -29,6 +29,7 @@ Hard-won knowledge from building this codebase. When you make a mistake or disco
 - For chat-only model effort controls, prefer synthetic built-in variants resolved inside `resolveModelSelection(...)` over returning dozens of built-ins from `/api/settings/model-variants`; that keeps the composer aligned with OpenCode-style effort selection without flooding Settings with generated preset rows.
 - For Workflow SDK discovery in Next.js, ensure workflow files live in scanned directories (for this app, `app/`), otherwise manifests can show steps but `0 workflows` and `start()` will not run durable workflows.
 - Server-side optimistic chat route lookup must allow realistic persistence latency (multi-second retry window), otherwise `/sessions/[sessionId]/chats/[chatId]` can redirect away before chat creation finishes.
+- Auth allowlists based on `session.user.email` must be enforced in `getSessionFromCookie(...)`, not only during OAuth callback handling, because this app's JWE session cookie is self-contained and otherwise continues to authorize users after the allowlist changes.
 
 ## Sandbox Lifecycle
 

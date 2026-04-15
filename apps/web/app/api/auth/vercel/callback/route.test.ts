@@ -60,6 +60,8 @@ const originalEnv = {
   NEXT_PUBLIC_VERCEL_APP_CLIENT_ID:
     process.env.NEXT_PUBLIC_VERCEL_APP_CLIENT_ID,
   VERCEL_APP_CLIENT_SECRET: process.env.VERCEL_APP_CLIENT_SECRET,
+  AUTH_ALLOWED_EMAILS: process.env.AUTH_ALLOWED_EMAILS,
+  AUTH_ALLOWED_EMAIL_DOMAINS: process.env.AUTH_ALLOWED_EMAIL_DOMAINS,
   VERCEL_GIT_REPO_OWNER: process.env.VERCEL_GIT_REPO_OWNER,
   VERCEL_GIT_REPO_SLUG: process.env.VERCEL_GIT_REPO_SLUG,
   VERCEL_PROJECT_PRODUCTION_URL: process.env.VERCEL_PROJECT_PRODUCTION_URL,
@@ -92,6 +94,8 @@ beforeEach(() => {
   Object.assign(process.env, {
     NEXT_PUBLIC_VERCEL_APP_CLIENT_ID: "client-id",
     VERCEL_APP_CLIENT_SECRET: "client-secret",
+    AUTH_ALLOWED_EMAILS: "",
+    AUTH_ALLOWED_EMAIL_DOMAINS: "",
     VERCEL_GIT_REPO_OWNER: "vercel-labs",
     VERCEL_GIT_REPO_SLUG: "open-harness",
     VERCEL_PROJECT_PRODUCTION_URL: "",
@@ -105,6 +109,8 @@ afterEach(() => {
     NEXT_PUBLIC_VERCEL_APP_CLIENT_ID:
       originalEnv.NEXT_PUBLIC_VERCEL_APP_CLIENT_ID,
     VERCEL_APP_CLIENT_SECRET: originalEnv.VERCEL_APP_CLIENT_SECRET,
+    AUTH_ALLOWED_EMAILS: originalEnv.AUTH_ALLOWED_EMAILS,
+    AUTH_ALLOWED_EMAIL_DOMAINS: originalEnv.AUTH_ALLOWED_EMAIL_DOMAINS,
     VERCEL_GIT_REPO_OWNER: originalEnv.VERCEL_GIT_REPO_OWNER,
     VERCEL_GIT_REPO_SLUG: originalEnv.VERCEL_GIT_REPO_SLUG,
     VERCEL_PROJECT_PRODUCTION_URL: originalEnv.VERCEL_PROJECT_PRODUCTION_URL,
@@ -115,7 +121,7 @@ afterEach(() => {
 });
 
 describe("GET /api/auth/vercel/callback", () => {
-  test("allows non-Vercel emails on the managed deployment", async () => {
+  test("allows sign-in when no auth allowlist is configured", async () => {
     getVercelUserInfoMock.mockResolvedValueOnce({
       sub: "vercel-user-1",
       email: "person@example.com",
@@ -140,31 +146,46 @@ describe("GET /api/auth/vercel/callback", () => {
     ]);
   });
 
-  test("allows non-Vercel emails on preview hosts for the managed deployment", async () => {
-    process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL = "open-agents.dev";
+  test("allows sign-in for an exact allowlisted email", async () => {
+    process.env.AUTH_ALLOWED_EMAILS = "person@example.com";
 
     const { GET } = await routeModulePromise;
-    const response = await GET(
-      createRequest("https://preview-feature.vercel.app"),
-    );
+    const response = await GET(createRequest());
 
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe("/sessions");
     expect(upsertUserMock).toHaveBeenCalledTimes(1);
   });
 
-  test("allows non-Vercel emails on self-hosted deployments", async () => {
-    process.env.VERCEL_GIT_REPO_OWNER = "someone-else";
-    process.env.VERCEL_GIT_REPO_SLUG = "open-harness-clone";
+  test("allows sign-in for an allowlisted domain", async () => {
+    process.env.AUTH_ALLOWED_EMAIL_DOMAINS = "example.com";
+
+    const { GET } = await routeModulePromise;
+    const response = await GET(createRequest());
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/sessions");
+    expect(upsertUserMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("rejects sign-in when the email is not on the allowlist", async () => {
+    process.env.AUTH_ALLOWED_EMAILS = "allowed@example.com";
 
     const { GET } = await routeModulePromise;
     const response = await GET(createRequest("https://self-hosted.example"));
 
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/sessions");
-    expect(upsertUserMock).toHaveBeenCalledTimes(1);
-    expect(response.headers.get("set-cookie")).toContain(
-      `${SESSION_COOKIE_NAME}=session-token`,
+    expect(response.headers.get("location")).toBe(
+      "https://self-hosted.example/?error=access_denied",
     );
+    expect(upsertUserMock).not.toHaveBeenCalled();
+    expect(response.headers.get("set-cookie")).toContain(
+      `${SESSION_COOKIE_NAME}=; Path=/; Max-Age=0`,
+    );
+    expect(deletedCookies).toEqual([
+      "vercel_auth_state",
+      "vercel_code_verifier",
+      "vercel_auth_redirect_to",
+    ]);
   });
 });

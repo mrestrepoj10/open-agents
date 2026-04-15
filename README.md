@@ -96,12 +96,16 @@ VERCEL_PROJECT_PRODUCTION_URL=
 NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL=
 VERCEL_SANDBOX_BASE_SNAPSHOT_ID=
 ELEVENLABS_API_KEY=
+AUTH_ALLOWED_EMAILS=
+AUTH_ALLOWED_EMAIL_DOMAINS=
 ```
 
 - `REDIS_URL` / `KV_URL`: optional skills metadata cache (falls back to in-memory when not configured).
 - `VERCEL_PROJECT_PRODUCTION_URL` / `NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL`: canonical production URL for metadata and some callback behavior.
 - `VERCEL_SANDBOX_BASE_SNAPSHOT_ID`: override the default sandbox snapshot.
 - `ELEVENLABS_API_KEY`: voice transcription.
+- `AUTH_ALLOWED_EMAILS`: optional comma-separated exact emails allowed to sign in.
+- `AUTH_ALLOWED_EMAIL_DOMAINS`: optional comma-separated email domains allowed to sign in.
 
 ## Deploy your own copy on Vercel
 
@@ -152,6 +156,12 @@ Recommended path: deploy this repo at the repo root on Vercel, then layer on aut
 
 10. Add the GitHub App env vars and redeploy.
 11. Optionally add Redis/KV and the canonical production URL vars.
+12. If you want to restrict access, add one or both of these and redeploy:
+
+   ```env
+   AUTH_ALLOWED_EMAILS=alice@example.com,bob@example.com
+   AUTH_ALLOWED_EMAIL_DOMAINS=example.com,contractor.example
+   ```
 
 ## Local setup
 
