@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { ModelVariant } from "@/lib/model-variants";
 import {
+  buildCodexTabModelOptions,
   buildModelOptions,
   getDefaultModelOptionId,
   prioritizeModelOptionsByProvider,
@@ -167,5 +168,38 @@ describe("model options", () => {
       options[0],
       options[3],
     ]);
+  });
+
+  test("buildCodexTabModelOptions returns the curated codex models in the requested order", () => {
+    const options = buildCodexTabModelOptions([
+      {
+        id: "openai/gpt-5.2-codex",
+        label: "GPT-5.2-Codex",
+        isVariant: false,
+        provider: "openai",
+      },
+      {
+        id: "openai/gpt-5.4",
+        label: "GPT-5.4",
+        isVariant: false,
+        provider: "openai",
+      },
+    ]);
+
+    expect(options.map((option) => option.id)).toEqual([
+      "openai/gpt-5.4",
+      "openai/gpt-5.2-codex",
+      "openai/gpt-5.1-codex-max",
+      "openai/gpt-5.4-mini",
+      "openai/gpt-5.3-codex",
+      "openai/gpt-5.3-codex-spark",
+      "openai/gpt-5.2",
+      "openai/gpt-5.1-codex-mini",
+    ]);
+    expect(options[5]).toMatchObject({
+      id: "openai/gpt-5.3-codex-spark",
+      label: "GPT-5.3-Codex-Spark",
+      description: "Codex-ready model",
+    });
   });
 });

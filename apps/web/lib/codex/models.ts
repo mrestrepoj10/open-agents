@@ -21,6 +21,11 @@ const CODEX_SUPPORTED_MODELS = [
     label: "GPT-5.3-Codex",
   },
   {
+    id: "openai/gpt-5.3-codex-spark",
+    apiModelId: "gpt-5.3-codex-spark",
+    label: "GPT-5.3-Codex-Spark",
+  },
+  {
     id: "openai/gpt-5.2",
     apiModelId: "gpt-5.2",
     label: "GPT-5.2",
@@ -63,6 +68,8 @@ const CODEX_MODEL_ALIASES = new Map<string, CodexSupportedModelId>([
   ["gpt-5.2", "openai/gpt-5.2"],
   ["openai/gpt-5.3-codex", "openai/gpt-5.3-codex"],
   ["gpt-5.3-codex", "openai/gpt-5.3-codex"],
+  ["openai/gpt-5.3-codex-spark", "openai/gpt-5.3-codex-spark"],
+  ["gpt-5.3-codex-spark", "openai/gpt-5.3-codex-spark"],
   ["openai/gpt-5.2-codex", "openai/gpt-5.2-codex"],
   ["gpt-5.2-codex", "openai/gpt-5.2-codex"],
   ["openai/gpt-5.1-codex-max", "openai/gpt-5.1-codex-max"],
@@ -105,6 +112,10 @@ export class UnsupportedCodexModelError extends Error {
 
 export function getSupportedCodexModelIds(): readonly CodexSupportedModelId[] {
   return CODEX_SUPPORTED_MODEL_IDS;
+}
+
+export function getSupportedCodexModels(): readonly CodexSupportedModel[] {
+  return CODEX_SUPPORTED_MODELS;
 }
 
 export function getSupportedCodexModelSummary(): string {

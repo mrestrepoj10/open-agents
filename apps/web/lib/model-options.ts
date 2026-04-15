@@ -8,6 +8,7 @@ import {
   MODEL_VARIANT_ID_PREFIX,
   type ModelVariant,
 } from "@/lib/model-variants";
+import { getSupportedCodexModels } from "@/lib/codex/models";
 
 export interface ModelOption {
   id: string;
@@ -120,4 +121,54 @@ export function prioritizeModelOptionsByProvider(
     (option) => option.provider !== provider,
   );
   return [...prioritized, ...remaining];
+}
+
+const CODEX_TAB_DESCRIPTION = "Codex-ready model";
+const CODEX_TAB_MODEL_IDS = [
+  "openai/gpt-5.4",
+  "openai/gpt-5.2-codex",
+  "openai/gpt-5.1-codex-max",
+  "openai/gpt-5.4-mini",
+  "openai/gpt-5.3-codex",
+  "openai/gpt-5.3-codex-spark",
+  "openai/gpt-5.2",
+  "openai/gpt-5.1-codex-mini",
+] as const;
+
+function createFallbackCodexModelOption(input: {
+  id: string;
+  label: string;
+}): ModelOption {
+  return {
+    id: input.id,
+    label: input.label,
+    description: CODEX_TAB_DESCRIPTION,
+    isVariant: false,
+    provider: "openai",
+  };
+}
+
+export function buildCodexTabModelOptions(
+  modelOptions: ModelOption[],
+): ModelOption[] {
+  const optionsById = new Map(
+    modelOptions.map((option) => [option.id, option]),
+  );
+  const supportedCodexModels = new Map(
+    getSupportedCodexModels().map((model) => [model.id, model]),
+  );
+
+  return CODEX_TAB_MODEL_IDS.flatMap((modelId) => {
+    const existingOption = optionsById.get(modelId);
+    if (existingOption) {
+      return [existingOption];
+    }
+
+    const supportedCodexModel = supportedCodexModels.get(modelId);
+    if (!supportedCodexModel) {
+      return [];
+    }
+
+    return [createFallbackCodexModelOption(supportedCodexModel)];
+  });
 }

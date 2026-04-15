@@ -20,6 +20,9 @@ describe("codex models", () => {
     expect(getCanonicalCodexApiModelId("openai/gpt-5.3-codex")).toBe(
       "gpt-5.3-codex",
     );
+    expect(getCanonicalCodexApiModelId("openai/gpt-5.3-codex-spark")).toBe(
+      "gpt-5.3-codex-spark",
+    );
   });
 
   test("rejects unsupported direct OpenAI models", () => {

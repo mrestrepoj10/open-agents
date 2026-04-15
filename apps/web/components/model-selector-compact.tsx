@@ -1,8 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckIcon, ChevronDown } from "lucide-react";
-import { type ModelOption } from "@/lib/model-options";
+import {
+  buildCodexTabModelOptions,
+  type ModelOption,
+} from "@/lib/model-options";
 import { APP_DEFAULT_MODEL_ID } from "@/lib/models";
 import { cn } from "@/lib/utils";
 import {
@@ -18,6 +21,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface ModelSelectorCompactProps {
   value: string;
@@ -58,7 +62,14 @@ export function ModelSelectorCompact({
 }: ModelSelectorCompactProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<"all" | "codex">("all");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const codexModelOptions = useMemo(
+    () => buildCodexTabModelOptions(modelOptions),
+    [modelOptions],
+  );
+  const activeModelOptions =
+    activeTab === "codex" ? codexModelOptions : modelOptions;
 
   const focusSearchInput = useCallback(() => {
     window.requestAnimationFrame(() => {
@@ -111,7 +122,12 @@ export function ModelSelectorCompact({
     setOpen(false);
   };
 
-  const selectedOption = modelOptions.find((option) => option.id === value);
+  const selectedOption = useMemo(() => {
+    return (
+      modelOptions.find((option) => option.id === value) ??
+      codexModelOptions.find((option) => option.id === value)
+    );
+  }, [codexModelOptions, modelOptions, value]);
   const displayText = selectedOption?.label ?? value;
 
   return (
@@ -121,6 +137,7 @@ export function ModelSelectorCompact({
         setOpen(nextOpen);
         if (!nextOpen) {
           setSearch("");
+          setActiveTab("all");
         }
       }}
     >
@@ -159,10 +176,29 @@ export function ModelSelectorCompact({
             onValueChange={setSearch}
             placeholder="Search models..."
           />
+          <div className="border-b px-2 py-2">
+            <Tabs
+              value={activeTab}
+              onValueChange={(nextValue) => {
+                if (nextValue === "all" || nextValue === "codex") {
+                  setActiveTab(nextValue);
+                }
+              }}
+            >
+              <TabsList className="grid h-8 w-full grid-cols-2">
+                <TabsTrigger value="all" className="text-xs">
+                  All Models
+                </TabsTrigger>
+                <TabsTrigger value="codex" className="text-xs">
+                  Codex
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
           <CommandList>
             <CommandEmpty>No models found.</CommandEmpty>
             <CommandGroup>
-              {modelOptions.map((option) => (
+              {activeModelOptions.map((option) => (
                 <CommandItem
                   key={option.id}
                   value={`${option.label} ${option.id} ${option.description ?? ""} ${
