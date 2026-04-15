@@ -8,7 +8,10 @@ import {
   pruneMessages,
   type UIMessageChunk,
 } from "ai";
-import type { OpenHarnessAgentCallOptions } from "@open-harness/agent";
+import type {
+  OpenHarnessAgentCallOptions,
+  OpenHarnessAgentModelInput,
+} from "@open-harness/agent";
 import { getWorkflowMetadata, getWritable } from "workflow";
 import { getRun } from "workflow/api";
 import { addLanguageModelUsage } from "./usage-utils";
@@ -65,6 +68,47 @@ const shouldPauseForToolInteraction = (parts: WebAgentUIMessage["parts"]) =>
       isToolUIPart(part) &&
       (part.state === "input-available" || part.state === "approval-requested"),
   );
+
+function describeResolvedModelInput(
+  input: OpenHarnessAgentModelInput | undefined,
+) {
+  if (!input) {
+    return null;
+  }
+
+  if (typeof input === "string") {
+    return {
+      modelId: input,
+      provider: input.split("/")[0] ?? "unknown",
+      source: input.startsWith("openai/") ? "gateway" : "provider-default",
+      transport: "gateway",
+    };
+  }
+
+  const provider = input.id.split("/")[0] ?? "unknown";
+  const isOpenAI = provider === "openai";
+  const config = input.config;
+  const codexConfig =
+    config !== undefined &&
+    "kind" in config &&
+    config.kind === "openai-compatible"
+      ? config
+      : null;
+  const source = codexConfig
+    ? "codex-subscription"
+    : isOpenAI
+      ? "gateway"
+      : "provider-default";
+  const transport = codexConfig ? codexConfig.baseURL : "gateway";
+
+  return {
+    modelId: input.id,
+    provider,
+    source,
+    requestedSource: isOpenAI ? (input.authSource ?? "gateway") : undefined,
+    transport,
+  };
+}
 
 const convertMessages = async (
   messages: WebAgentUIMessage[],
@@ -779,6 +823,16 @@ const runAgentStep = async (
       userId,
       agentOptions,
     );
+    console.info("[chat] Resolved model source", {
+      workflowRunId,
+      sessionId,
+      chatId,
+      stepNumber,
+      mainModel: describeResolvedModelInput(resolvedAgentOptions.model),
+      subagentModel: describeResolvedModelInput(
+        resolvedAgentOptions.subagentModel,
+      ),
+    });
     let responseMessage: WebAgentUIMessage | undefined;
     let lastStepUsage: LanguageModelUsage | undefined;
     const lastOriginalMessage = originalMessages.at(-1);

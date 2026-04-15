@@ -98,6 +98,7 @@ import { useImageAttachments } from "@/hooks/use-image-attachments";
 import { useTextAttachments } from "@/hooks/use-text-attachments";
 import { useScrollToBottom } from "@/hooks/use-scroll-to-bottom";
 import { useSessionChats } from "@/hooks/use-session-chats";
+import { useSession } from "@/hooks/use-session";
 import { useSlashCommands } from "@/hooks/use-slash-commands";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
 import {
@@ -1050,7 +1051,12 @@ export function SessionChatContent({
     panelPortalRef,
     headerActionsRef,
   } = useGitPanel();
+  const { hasCodexAccount } = useSession();
   const { preferences } = useUserPreferences();
+  const effectiveOpenAIAuthSource =
+    preferences?.openaiAuthSource === "codex-subscription" && hasCodexAccount
+      ? "codex-subscription"
+      : "gateway";
   const isIosDevice = useMemo(() => {
     if (typeof navigator === "undefined") {
       return false;
@@ -4165,6 +4171,7 @@ export function SessionChatContent({
                                 <ModelSelectorCompact
                                   value={chatInfo.modelId}
                                   modelOptions={modelOptions}
+                                  openAIAuthSource={effectiveOpenAIAuthSource}
                                   disabled={
                                     isChatInFlight ||
                                     isUpdatingModel ||
@@ -4195,9 +4202,20 @@ export function SessionChatContent({
                               </div>
                             ) : (
                               chatInfo.modelId && (
-                                <span className="max-w-28 truncate text-xs text-muted-foreground/60 sm:max-w-none">
-                                  {selectedModelOption?.label ??
-                                    chatInfo.modelId}
+                                <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground/60">
+                                  <span className="max-w-28 truncate sm:max-w-none">
+                                    {selectedModelOption?.label ??
+                                      chatInfo.modelId}
+                                  </span>
+                                  {selectedModelOption?.provider ===
+                                  "openai" ? (
+                                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+                                      {effectiveOpenAIAuthSource ===
+                                      "codex-subscription"
+                                        ? "Codex"
+                                        : "Gateway"}
+                                    </span>
+                                  ) : null}
                                 </span>
                               )
                             )}

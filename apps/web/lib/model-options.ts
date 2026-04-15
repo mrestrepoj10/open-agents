@@ -14,6 +14,7 @@ export interface ModelOption {
   label: string;
   description?: string;
   isVariant: boolean;
+  provider?: string;
   contextWindow?: number;
   cost?: AvailableModelCost;
 }
@@ -24,6 +25,7 @@ function toBaseModelOption(model: AvailableModel): ModelOption {
     label: getModelDisplayName(model),
     description: model.description ?? undefined,
     isVariant: false,
+    provider: model.id.split("/")[0],
     contextWindow: model.context_window,
     ...(model.cost ? { cost: model.cost } : {}),
   };
@@ -42,6 +44,7 @@ function toVariantOption(
     label: variant.name,
     description: `Variant of ${baseLabel}`,
     isVariant: true,
+    provider: variant.baseModelId.split("/")[0],
     contextWindow: baseModel?.context_window,
     ...(baseModel?.cost ? { cost: baseModel.cost } : {}),
   };

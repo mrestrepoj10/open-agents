@@ -23,14 +23,36 @@ interface ModelSelectorCompactProps {
   value: string;
   modelOptions: ModelOption[];
   onChange: (modelId: string) => void;
+  openAIAuthSource?: "gateway" | "codex-subscription";
   disabled?: boolean;
   onCloseAutoFocus?: () => void;
+}
+
+function isOpenAIModel(option: ModelOption | undefined): boolean {
+  return option?.provider === "openai";
+}
+
+function renderOpenAIBadgeLabel(source: "gateway" | "codex-subscription") {
+  return source === "codex-subscription" ? "Codex" : "Gateway";
+}
+
+function OpenAIAuthSourceBadge({
+  source,
+}: {
+  source: "gateway" | "codex-subscription";
+}) {
+  return (
+    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+      {renderOpenAIBadgeLabel(source)}
+    </span>
+  );
 }
 
 export function ModelSelectorCompact({
   value,
   modelOptions,
   onChange,
+  openAIAuthSource = "gateway",
   disabled = false,
   onCloseAutoFocus,
 }: ModelSelectorCompactProps) {
@@ -112,6 +134,9 @@ export function ModelSelectorCompact({
           className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-neutral-500 transition-colors hover:bg-white/5 hover:text-neutral-300 disabled:pointer-events-none disabled:opacity-60"
         >
           <span className="max-w-[140px] truncate">{displayText}</span>
+          {isOpenAIModel(selectedOption) ? (
+            <OpenAIAuthSourceBadge source={openAIAuthSource} />
+          ) : null}
           <ChevronDown className="h-3 w-3" />
         </button>
       </PopoverTrigger>
@@ -140,7 +165,11 @@ export function ModelSelectorCompact({
               {modelOptions.map((option) => (
                 <CommandItem
                   key={option.id}
-                  value={`${option.label} ${option.id} ${option.description ?? ""}`}
+                  value={`${option.label} ${option.id} ${option.description ?? ""} ${
+                    isOpenAIModel(option)
+                      ? renderOpenAIBadgeLabel(openAIAuthSource)
+                      : ""
+                  }`}
                   onSelect={() => handleSelect(option.id)}
                 >
                   <CheckIcon
@@ -152,6 +181,9 @@ export function ModelSelectorCompact({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="truncate">{option.label}</span>
+                      {isOpenAIModel(option) ? (
+                        <OpenAIAuthSourceBadge source={openAIAuthSource} />
+                      ) : null}
                       {option.isVariant && (
                         <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
                           variant

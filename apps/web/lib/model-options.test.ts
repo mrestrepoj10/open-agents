@@ -50,6 +50,7 @@ describe("model options", () => {
         label: "GPT-5",
         description: "Base model",
         isVariant: false,
+        provider: "openai",
         contextWindow: 400_000,
       },
       {
@@ -57,6 +58,7 @@ describe("model options", () => {
         label: "GPT-5 Medium Reasoning",
         description: "Variant of GPT-5",
         isVariant: true,
+        provider: "openai",
         contextWindow: 400_000,
       },
     ]);
