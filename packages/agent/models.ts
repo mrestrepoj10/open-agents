@@ -9,6 +9,7 @@ import {
 } from "ai";
 import { devToolsMiddleware } from "@ai-sdk/devtools";
 import type { AnthropicLanguageModelOptions } from "@ai-sdk/anthropic";
+import type { FetchFunction } from "@ai-sdk/provider-utils";
 import {
   createOpenAI,
   type OpenAIResponsesProviderOptions,
@@ -99,6 +100,7 @@ export interface OpenAICompatibleConfig {
   apiKey: string;
   headers?: Record<string, string>;
   name?: string;
+  fetch?: FetchFunction;
 }
 
 export type GatewayConfig = GatewayTransportConfig | OpenAICompatibleConfig;
@@ -205,6 +207,7 @@ export function gateway(
     const provider = createOpenAI({
       apiKey: config.apiKey,
       baseURL: config.baseURL,
+      fetch: config.fetch,
       headers: config.headers,
       ...(config.name ? { name: config.name } : {}),
     });

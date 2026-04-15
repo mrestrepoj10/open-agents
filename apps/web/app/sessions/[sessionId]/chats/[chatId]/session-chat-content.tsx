@@ -117,6 +117,7 @@ import {
   DEFAULT_CONTEXT_LIMIT,
   estimateModelUsageCost,
 } from "@/lib/models";
+import { prioritizeModelOptionsByProvider } from "@/lib/model-options";
 import { getPrDeploymentRefreshInterval } from "@/lib/pr-deployment-polling";
 import { fetcher } from "@/lib/swr";
 import { streamdownPlugins } from "@/lib/streamdown-config";
@@ -1762,6 +1763,13 @@ export function SessionChatContent({
   const selectedModelOption = useMemo(
     () => modelOptions.find((option) => option.id === chatInfo.modelId),
     [modelOptions, chatInfo.modelId],
+  );
+  const promptModelOptions = useMemo(
+    () =>
+      hasCodexAccount
+        ? prioritizeModelOptionsByProvider(modelOptions, "openai")
+        : modelOptions,
+    [hasCodexAccount, modelOptions],
   );
 
   const handleFileSelect = (
@@ -4170,7 +4178,7 @@ export function SessionChatContent({
                               >
                                 <ModelSelectorCompact
                                   value={chatInfo.modelId}
-                                  modelOptions={modelOptions}
+                                  modelOptions={promptModelOptions}
                                   openAIAuthSource={effectiveOpenAIAuthSource}
                                   disabled={
                                     isChatInFlight ||

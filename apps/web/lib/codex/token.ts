@@ -1,3 +1,4 @@
+import type { FetchFunction } from "@ai-sdk/provider-utils";
 import { and, eq } from "drizzle-orm";
 import { decrypt, encrypt } from "@/lib/crypto";
 import { db } from "@/lib/db/client";
@@ -10,6 +11,7 @@ import {
   refreshCodexToken,
   type CodexJwtClaims,
 } from "./oauth";
+import { createCodexFetch } from "./fetch";
 
 export interface UserCodexAuthInfo {
   accessToken: string;
@@ -113,6 +115,7 @@ export interface CodexModelConfig {
   apiKey: string;
   headers: Record<string, string>;
   name: "openai";
+  fetch: FetchFunction;
 }
 
 export async function getUserCodexModelConfig(
@@ -128,6 +131,7 @@ export async function getUserCodexModelConfig(
     baseURL: CODEX_API_BASE_URL,
     apiKey: CODEX_DUMMY_API_KEY,
     name: "openai",
+    fetch: createCodexFetch(),
     headers: {
       Authorization: `Bearer ${auth.accessToken}`,
       "ChatGPT-Account-Id": auth.accountId,

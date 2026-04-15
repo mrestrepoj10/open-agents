@@ -104,3 +104,20 @@ export function getDefaultModelOptionId(modelOptions: ModelOption[]): string {
 
   return modelOptions[0]?.id ?? APP_DEFAULT_MODEL_ID;
 }
+
+export function prioritizeModelOptionsByProvider(
+  modelOptions: ModelOption[],
+  provider: string,
+): ModelOption[] {
+  const prioritized = modelOptions.filter(
+    (option) => option.provider === provider,
+  );
+  if (prioritized.length === 0) {
+    return modelOptions;
+  }
+
+  const remaining = modelOptions.filter(
+    (option) => option.provider !== provider,
+  );
+  return [...prioritized, ...remaining];
+}
