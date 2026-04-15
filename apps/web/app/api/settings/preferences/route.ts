@@ -1,11 +1,16 @@
 import { getServerSession } from "@/lib/session/get-server-session";
 import {
+  assertCodexSelectionSupported,
+  isUnsupportedCodexModelError,
+} from "@/lib/codex/models";
+import {
   getUserPreferences,
   type DiffMode,
   type OpenAIAuthSource,
   updateUserPreferences,
 } from "@/lib/db/user-preferences";
 import { sanitizeUserPreferencesForSession } from "@/lib/model-access";
+import { getAllVariants } from "@/lib/model-variants";
 import type { SandboxType } from "@/components/sandbox-selector-compact";
 import {
   globalSkillRefsSchema,
@@ -163,6 +168,32 @@ export async function PATCH(req: Request) {
   }
 
   try {
+    const currentPreferences = await getUserPreferences(session.user.id);
+    const nextOpenAIAuthSource =
+      body.openaiAuthSource ?? currentPreferences.openaiAuthSource;
+
+    if (nextOpenAIAuthSource === "codex-subscription") {
+      const modelVariants = getAllVariants(currentPreferences.modelVariants);
+      const nextDefaultModelId =
+        body.defaultModelId ?? currentPreferences.defaultModelId;
+      const nextDefaultSubagentModelId =
+        body.defaultSubagentModelId !== undefined
+          ? body.defaultSubagentModelId
+          : currentPreferences.defaultSubagentModelId;
+
+      body.defaultModelId =
+        assertCodexSelectionSupported(nextDefaultModelId, modelVariants) ??
+        nextDefaultModelId;
+
+      if (nextDefaultSubagentModelId !== null) {
+        body.defaultSubagentModelId =
+          assertCodexSelectionSupported(
+            nextDefaultSubagentModelId,
+            modelVariants,
+          ) ?? nextDefaultSubagentModelId;
+      }
+    }
+
     const preferences = sanitizeUserPreferencesForSession(
       await updateUserPreferences(session.user.id, body),
       session,
@@ -170,6 +201,15 @@ export async function PATCH(req: Request) {
     );
     return Response.json({ preferences });
   } catch (error) {
+    if (isUnsupportedCodexModelError(error)) {
+      console.warn("[codex] Rejected unsupported preferences model", {
+        userId: session.user.id,
+        requestedModelId: error.requestedModelId,
+        resolvedModelId: error.resolvedModelId ?? null,
+      });
+      return Response.json({ error: error.message }, { status: 400 });
+    }
+
     console.error("Failed to update preferences:", error);
     return Response.json(
       { error: "Failed to update preferences" },

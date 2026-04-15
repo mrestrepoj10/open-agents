@@ -1,10 +1,21 @@
 import { describe, expect, test } from "bun:test";
+import { UnsupportedCodexModelError } from "./models";
 import { transformCodexRequestBody } from "./fetch";
 
 describe("transformCodexRequestBody", () => {
-  test("normalizes GPT-5.4 requests to a Codex-supported model and injects instructions", () => {
+  test("maps codex-flavored models to codex backends", () => {
     const result = transformCodexRequestBody({
-      model: "gpt-5.4",
+      model: "openai/gpt-5-codex",
+      input: [],
+    });
+
+    expect(result.normalizedModel).toBe("gpt-5.1-codex");
+    expect(result.body.model).toBe("gpt-5.1-codex");
+  });
+
+  test("injects instructions, strips input ids, and disables storage", () => {
+    const result = transformCodexRequestBody({
+      model: "gpt-5.1-codex-max",
       input: [
         {
           id: "msg_1",
@@ -23,8 +34,8 @@ describe("transformCodexRequestBody", () => {
       store: true,
     });
 
-    expect(result.normalizedModel).toBe("gpt-5.1");
-    expect(result.body.model).toBe("gpt-5.1");
+    expect(result.normalizedModel).toBe("gpt-5.1-codex-max");
+    expect(result.body.model).toBe("gpt-5.1-codex-max");
     expect(result.body.instructions).toBe("Follow the repo rules.");
     expect(result.body.store).toBe(false);
     expect(result.body.include).toEqual(["reasoning.encrypted_content"]);
@@ -32,13 +43,12 @@ describe("transformCodexRequestBody", () => {
     expect(result.body.input?.[1]).not.toHaveProperty("id");
   });
 
-  test("maps codex-flavored models to codex backends", () => {
-    const result = transformCodexRequestBody({
-      model: "openai/gpt-5-codex",
-      input: [],
-    });
-
-    expect(result.normalizedModel).toBe("gpt-5.1-codex");
-    expect(result.body.model).toBe("gpt-5.1-codex");
+  test("rejects unsupported non-codex models", () => {
+    expect(() =>
+      transformCodexRequestBody({
+        model: "gpt-5.3",
+        input: [],
+      }),
+    ).toThrow(UnsupportedCodexModelError);
   });
 });

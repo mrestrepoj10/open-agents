@@ -73,6 +73,22 @@ let chatsInSession: Array<{ id: string }> = [
   { id: "chat-2" },
 ];
 
+const preferencesState = {
+  defaultModelId: "model-default",
+  defaultSubagentModelId: null as string | null,
+  defaultSandboxType: "vercel" as const,
+  defaultDiffMode: "unified" as const,
+  autoCommitPush: false,
+  autoCreatePr: false,
+  alertsEnabled: true,
+  alertSoundEnabled: true,
+  publicUsageEnabled: false,
+  globalSkillRefs: [] as Array<{ source: string; skillName: string }>,
+  modelVariants: [] as Array<Record<string, unknown>>,
+  enabledModelIds: [] as string[],
+  openaiAuthSource: "gateway" as "gateway" | "codex-subscription",
+};
+
 const updateChatCalls: Array<{
   chatId: string;
   patch: { title?: string; modelId?: string };
@@ -100,21 +116,7 @@ mock.module("@/lib/db/sessions", () => ({
 }));
 
 mock.module("@/lib/db/user-preferences", () => ({
-  getUserPreferences: async () => ({
-    defaultModelId: "model-default",
-    defaultSubagentModelId: null,
-    defaultSandboxType: "vercel",
-    defaultDiffMode: "unified",
-    autoCommitPush: false,
-    autoCreatePr: false,
-    alertsEnabled: true,
-    alertSoundEnabled: true,
-    publicUsageEnabled: false,
-    globalSkillRefs: [],
-    modelVariants: [],
-    enabledModelIds: [],
-    openaiAuthSource: "gateway",
-  }),
+  getUserPreferences: async () => preferencesState,
 }));
 
 mock.module("@/lib/session/get-server-session", () => ({
@@ -168,6 +170,10 @@ describe("/api/sessions/[sessionId]/chats/[chatId]", () => {
       modelId: "model-updated",
     };
     chatsInSession = [{ id: "chat-1" }, { id: "chat-2" }];
+    preferencesState.defaultModelId = "model-default";
+    preferencesState.defaultSubagentModelId = null;
+    preferencesState.modelVariants = [];
+    preferencesState.openaiAuthSource = "gateway";
     updateChatCalls.length = 0;
     deleteChatCalls.length = 0;
   });
@@ -318,6 +324,21 @@ describe("/api/sessions/[sessionId]/chats/[chatId]", () => {
 
     expect(response.status).toBe(404);
     expect(body.error).toBe("Chat not found");
+  });
+
+  test("PATCH rejects unsupported codex model updates", async () => {
+    preferencesState.openaiAuthSource = "codex-subscription";
+    const { PATCH } = await routeModulePromise;
+
+    const response = await PATCH(
+      createPatchRequest({ modelId: "openai/gpt-5.3" }),
+      createContext(),
+    );
+    const body = (await response.json()) as { error: string };
+
+    expect(response.status).toBe(400);
+    expect(body.error).toContain("not supported by Codex Subscription");
+    expect(updateChatCalls).toHaveLength(0);
   });
 
   test("DELETE returns 400 when attempting to delete the only chat", async () => {

@@ -260,6 +260,22 @@ describe("/api/settings/preferences", () => {
     ]);
   });
 
+  test("PATCH rejects unsupported codex default models", async () => {
+    const { PATCH } = await routeModulePromise;
+
+    const response = await PATCH(
+      createJsonRequest("PATCH", {
+        openaiAuthSource: "codex-subscription",
+        defaultModelId: "openai/gpt-5.3",
+      }),
+    );
+    const body = (await response.json()) as { error: string };
+
+    expect(response.status).toBe(400);
+    expect(body.error).toContain("not supported by Codex Subscription");
+    expect(updateCalls).toHaveLength(0);
+  });
+
   test("PATCH returns 400 for invalid JSON", async () => {
     const { PATCH } = await routeModulePromise;
 

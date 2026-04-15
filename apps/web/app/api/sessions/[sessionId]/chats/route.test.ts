@@ -61,6 +61,22 @@ const createChatCalls: Array<{
   modelId: string;
 }> = [];
 
+const preferencesState = {
+  defaultModelId: "model-default",
+  defaultSubagentModelId: null as string | null,
+  defaultSandboxType: "vercel" as const,
+  defaultDiffMode: "unified" as const,
+  autoCommitPush: false,
+  autoCreatePr: false,
+  alertsEnabled: true,
+  alertSoundEnabled: true,
+  publicUsageEnabled: false,
+  globalSkillRefs: [] as Array<{ source: string; skillName: string }>,
+  modelVariants: [] as Array<Record<string, unknown>>,
+  enabledModelIds: [] as string[],
+  openaiAuthSource: "gateway" as "gateway" | "codex-subscription",
+};
+
 mock.module("@/app/api/sessions/_lib/session-context", () => ({
   requireAuthenticatedUser: async () => authResult,
   requireOwnedSession: async () => ownedSessionResult,
@@ -92,21 +108,7 @@ mock.module("@/lib/db/sessions", () => ({
 }));
 
 mock.module("@/lib/db/user-preferences", () => ({
-  getUserPreferences: async () => ({
-    defaultModelId: "model-default",
-    defaultSubagentModelId: null,
-    defaultSandboxType: "vercel",
-    defaultDiffMode: "unified",
-    autoCommitPush: false,
-    autoCreatePr: false,
-    alertsEnabled: true,
-    alertSoundEnabled: true,
-    publicUsageEnabled: false,
-    globalSkillRefs: [],
-    modelVariants: [],
-    enabledModelIds: [],
-    openaiAuthSource: "gateway",
-  }),
+  getUserPreferences: async () => preferencesState,
 }));
 
 const routeModulePromise = import("./route");
@@ -141,6 +143,10 @@ describe("/api/sessions/[sessionId]/chats", () => {
       title: "New chat",
       modelId: "model-default",
     };
+    preferencesState.defaultModelId = "model-default";
+    preferencesState.defaultSubagentModelId = null;
+    preferencesState.modelVariants = [];
+    preferencesState.openaiAuthSource = "gateway";
     getSummaryCalls.length = 0;
     createChatCalls.length = 0;
   });
@@ -267,5 +273,18 @@ describe("/api/sessions/[sessionId]/chats", () => {
       },
     ]);
     expect(body.chat.id).toBe("generated-chat-id");
+  });
+
+  test("POST rejects unsupported codex default models", async () => {
+    preferencesState.defaultModelId = "openai/gpt-5.3";
+    preferencesState.openaiAuthSource = "codex-subscription";
+    const { POST } = await routeModulePromise;
+
+    const response = await POST(createJsonRequest({}), createContext());
+    const body = (await response.json()) as { error: string };
+
+    expect(response.status).toBe(400);
+    expect(body.error).toContain("not supported by Codex Subscription");
+    expect(createChatCalls).toHaveLength(0);
   });
 });

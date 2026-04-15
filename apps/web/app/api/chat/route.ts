@@ -16,6 +16,10 @@ import {
 } from "@/lib/db/sessions";
 import { getUserPreferences } from "@/lib/db/user-preferences";
 import {
+  assertCodexSelectionSupported,
+  isUnsupportedCodexModelError,
+} from "@/lib/codex/models";
+import {
   filterModelVariantsForSession,
   sanitizeSelectedModelIdForSession,
   sanitizeUserPreferencesForSession,
@@ -67,6 +71,59 @@ function getLatestUserMessage(messages: WebAgentUIMessage[]) {
   }
 
   return null;
+}
+
+function validateCodexSelectionOrResponse(params: {
+  selectedModelId: string | null | undefined;
+  modelVariants: ReturnType<typeof getAllVariants>;
+  selectionLabel: string;
+  openaiAuthSource: "gateway" | "codex-subscription" | undefined;
+  workflowRunContext: {
+    sessionId: string;
+    chatId: string;
+    userId: string;
+  };
+}) {
+  const {
+    selectedModelId,
+    modelVariants,
+    selectionLabel,
+    openaiAuthSource,
+    workflowRunContext,
+  } = params;
+
+  if (openaiAuthSource !== "codex-subscription") {
+    return {
+      ok: true as const,
+      selectedModelId,
+    };
+  }
+
+  try {
+    return {
+      ok: true as const,
+      selectedModelId: assertCodexSelectionSupported(
+        selectedModelId,
+        modelVariants,
+      ),
+    };
+  } catch (error) {
+    if (!isUnsupportedCodexModelError(error)) {
+      throw error;
+    }
+
+    console.warn("[codex] Rejected unsupported model selection", {
+      ...workflowRunContext,
+      selectionLabel,
+      requestedModelId: error.requestedModelId,
+      resolvedModelId: error.resolvedModelId ?? null,
+    });
+
+    return {
+      ok: false as const,
+      response: Response.json({ error: error.message }, { status: 400 }),
+    };
+  }
 }
 
 export async function POST(req: Request) {
@@ -199,32 +256,64 @@ export async function POST(req: Request) {
     session,
     req.url,
   );
+  const mainModelIdValidation = validateCodexSelectionOrResponse({
+    selectedModelId: sanitizeSelectedModelIdForSession(
+      chat.modelId,
+      modelVariants,
+      session,
+      req.url,
+    ),
+    modelVariants,
+    selectionLabel: "main",
+    openaiAuthSource: preferences?.openaiAuthSource,
+    workflowRunContext: {
+      sessionId,
+      chatId,
+      userId,
+    },
+  });
+  if (!mainModelIdValidation.ok) {
+    return mainModelIdValidation.response;
+  }
+
+  const subagentModelIdValidation = validateCodexSelectionOrResponse({
+    selectedModelId: preferences?.defaultSubagentModelId
+      ? sanitizeSelectedModelIdForSession(
+          preferences.defaultSubagentModelId,
+          modelVariants,
+          session,
+          req.url,
+        )
+      : undefined,
+    modelVariants,
+    selectionLabel: "subagent",
+    openaiAuthSource: preferences?.openaiAuthSource,
+    workflowRunContext: {
+      sessionId,
+      chatId,
+      userId,
+    },
+  });
+  if (!subagentModelIdValidation.ok) {
+    return subagentModelIdValidation.response;
+  }
+
   const mainModelSelection = applyOpenAIAuthSource(
     resolveChatModelSelection({
-      selectedModelId: sanitizeSelectedModelIdForSession(
-        chat.modelId,
-        modelVariants,
-        session,
-        req.url,
-      ),
+      selectedModelId: mainModelIdValidation.selectedModelId,
       modelVariants,
       missingVariantLabel: "Selected model variant",
     }),
     preferences?.openaiAuthSource,
   );
-  const subagentModelSelection = preferences?.defaultSubagentModelId
+  const subagentModelSelection = subagentModelIdValidation.selectedModelId
     ? applyOpenAIAuthSource(
         resolveChatModelSelection({
-          selectedModelId: sanitizeSelectedModelIdForSession(
-            preferences.defaultSubagentModelId,
-            modelVariants,
-            session,
-            req.url,
-          ),
+          selectedModelId: subagentModelIdValidation.selectedModelId,
           modelVariants,
           missingVariantLabel: "Subagent model variant",
         }),
-        preferences.openaiAuthSource,
+        preferences?.openaiAuthSource,
       )
     : undefined;
 

@@ -9,6 +9,10 @@ import {
   getChatsBySessionId,
   updateChat,
 } from "@/lib/db/sessions";
+import {
+  assertCodexSelectionSupported,
+  isUnsupportedCodexModelError,
+} from "@/lib/codex/models";
 import { getUserPreferences } from "@/lib/db/user-preferences";
 import { sanitizeSelectedModelIdForSession } from "@/lib/model-access";
 import { getAllVariants } from "@/lib/model-variants";
@@ -117,13 +121,38 @@ export async function PATCH(req: Request, context: RouteContext) {
   }
   if (nextModelId) {
     const preferences = await getUserPreferences(authResult.userId);
+    const modelVariants = getAllVariants(preferences.modelVariants);
     const sanitizedModelId = sanitizeSelectedModelIdForSession(
       nextModelId,
-      getAllVariants(preferences.modelVariants),
+      modelVariants,
       session,
       req.url,
     );
-    updatePayload.modelId = sanitizedModelId ?? nextModelId;
+
+    try {
+      updatePayload.modelId =
+        preferences.openaiAuthSource === "codex-subscription"
+          ? (assertCodexSelectionSupported(
+              sanitizedModelId ?? nextModelId,
+              modelVariants,
+            ) ??
+            sanitizedModelId ??
+            nextModelId)
+          : (sanitizedModelId ?? nextModelId);
+    } catch (error) {
+      if (isUnsupportedCodexModelError(error)) {
+        console.warn("[codex] Rejected unsupported chat model update", {
+          userId: authResult.userId,
+          sessionId,
+          chatId,
+          requestedModelId: error.requestedModelId,
+          resolvedModelId: error.resolvedModelId ?? null,
+        });
+        return Response.json({ error: error.message }, { status: 400 });
+      }
+
+      throw error;
+    }
   }
 
   const updatedChat = await updateChat(chatId, updatePayload);

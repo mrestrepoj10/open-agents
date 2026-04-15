@@ -8,8 +8,13 @@ import {
   getChatById,
   getChatSummariesBySessionId,
 } from "@/lib/db/sessions";
+import {
+  assertCodexSelectionSupported,
+  isUnsupportedCodexModelError,
+} from "@/lib/codex/models";
 import { getUserPreferences } from "@/lib/db/user-preferences";
 import { sanitizeUserPreferencesForSession } from "@/lib/model-access";
+import { getAllVariants } from "@/lib/model-variants";
 import { getServerSession } from "@/lib/session/get-server-session";
 
 type RouteContext = {
@@ -95,11 +100,35 @@ export async function POST(req: Request, context: RouteContext) {
     session,
     req.url,
   );
+  let modelId = preferences.defaultModelId;
+
+  try {
+    if (preferences.openaiAuthSource === "codex-subscription") {
+      modelId =
+        assertCodexSelectionSupported(
+          preferences.defaultModelId,
+          getAllVariants(preferences.modelVariants),
+        ) ?? preferences.defaultModelId;
+    }
+  } catch (error) {
+    if (isUnsupportedCodexModelError(error)) {
+      console.warn("[codex] Rejected unsupported default chat model", {
+        userId: authResult.userId,
+        sessionId,
+        requestedModelId: error.requestedModelId,
+        resolvedModelId: error.resolvedModelId ?? null,
+      });
+      return Response.json({ error: error.message }, { status: 400 });
+    }
+
+    throw error;
+  }
+
   const chat = await createChat({
     id: requestedChatId ?? nanoid(),
     sessionId,
     title: "New chat",
-    modelId: preferences.defaultModelId,
+    modelId,
   });
 
   return Response.json({ chat });

@@ -11,7 +11,12 @@ import {
   upsertVercelProjectLink,
 } from "@/lib/db/vercel-project-links";
 import { getUserPreferences } from "@/lib/db/user-preferences";
+import {
+  assertCodexSelectionSupported,
+  isUnsupportedCodexModelError,
+} from "@/lib/codex/models";
 import { sanitizeUserPreferencesForSession } from "@/lib/model-access";
+import { getAllVariants } from "@/lib/model-variants";
 import {
   isValidGitHubRepoName,
   isValidGitHubRepoOwner,
@@ -323,6 +328,16 @@ export async function POST(req: Request) {
       session,
       req.url,
     );
+    let initialChatModelId = preferences.defaultModelId;
+
+    if (preferences.openaiAuthSource === "codex-subscription") {
+      initialChatModelId =
+        assertCodexSelectionSupported(
+          preferences.defaultModelId,
+          getAllVariants(preferences.modelVariants),
+        ) ?? preferences.defaultModelId;
+    }
+
     const effectiveAutoCommitPush =
       autoCommitPush ?? preferences.autoCommitPush;
     const effectiveAutoCreatePr = autoCreatePr ?? preferences.autoCreatePr;
@@ -353,12 +368,21 @@ export async function POST(req: Request) {
       initialChat: {
         id: nanoid(),
         title: "New chat",
-        modelId: preferences.defaultModelId,
+        modelId: initialChatModelId,
       },
     });
 
     return Response.json(result);
   } catch (error) {
+    if (isUnsupportedCodexModelError(error)) {
+      console.warn("[codex] Rejected unsupported initial session model", {
+        userId: session.user.id,
+        requestedModelId: error.requestedModelId,
+        resolvedModelId: error.resolvedModelId ?? null,
+      });
+      return Response.json({ error: error.message }, { status: 400 });
+    }
+
     console.error("Failed to create session:", error);
     return Response.json(
       { error: "Failed to create session" },

@@ -1,4 +1,8 @@
 import type { FetchFunction } from "@ai-sdk/provider-utils";
+import {
+  assertCodexModelIdSupported,
+  getCanonicalCodexApiModelId,
+} from "./models";
 
 const DEFAULT_CODEX_INSTRUCTIONS =
   "You are Codex, a coding assistant operating inside Open Harness. Follow developer and user instructions, use available tools carefully, and produce concise, accurate results.";
@@ -16,64 +20,11 @@ type CodexRequestBody = {
 
 function normalizeCodexModel(model: string | undefined): string {
   if (!model) {
-    return "gpt-5.1";
-  }
-
-  const modelId = model.includes("/")
-    ? (model.split("/").pop() ?? model)
-    : model;
-  const normalized = modelId.toLowerCase();
-
-  if (
-    normalized.includes("gpt-5.2-codex") ||
-    normalized.includes("gpt 5.2 codex")
-  ) {
-    return "gpt-5.2-codex";
-  }
-
-  if (normalized.includes("gpt-5.2") || normalized.includes("gpt 5.2")) {
-    return "gpt-5.2";
-  }
-
-  if (
-    normalized.includes("gpt-5.1-codex-max") ||
-    normalized.includes("gpt 5.1 codex max")
-  ) {
     return "gpt-5.1-codex-max";
   }
 
-  if (
-    normalized.includes("gpt-5.1-codex-mini") ||
-    normalized.includes("gpt 5.1 codex mini") ||
-    normalized.includes("gpt-5-codex-mini") ||
-    normalized.includes("gpt 5 codex mini") ||
-    normalized.includes("codex-mini-latest")
-  ) {
-    return "gpt-5.1-codex-mini";
-  }
-
-  if (
-    normalized.includes("gpt-5.1-codex") ||
-    normalized.includes("gpt 5.1 codex") ||
-    normalized.includes("gpt-5-codex") ||
-    normalized.includes("gpt 5 codex")
-  ) {
-    return "gpt-5.1-codex";
-  }
-
-  if (normalized.includes("gpt-5.1") || normalized.includes("gpt 5.1")) {
-    return "gpt-5.1";
-  }
-
-  if (normalized.includes("codex")) {
-    return "gpt-5.1-codex";
-  }
-
-  if (normalized.includes("gpt-5") || normalized.includes("gpt 5")) {
-    return "gpt-5.1";
-  }
-
-  return "gpt-5.1";
+  const canonicalModelId = assertCodexModelIdSupported(model);
+  return getCanonicalCodexApiModelId(canonicalModelId) ?? "gpt-5.1-codex-max";
 }
 
 function stripInputIds(
@@ -196,7 +147,7 @@ export function createCodexFetch(): FetchFunction {
       });
     } catch (error) {
       console.error("[codex] Failed to transform request body", error);
-      return fetch(input, init);
+      throw error;
     }
   }) as FetchFunction;
 }
